@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#f45b16">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <title>КОТОМАТИКА Admin</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="stylesheet" href="./styles.css?v=1">
+</head>
+<body>
+  <div id="loginView" class="login-view">
+    <div class="login-card">
+      <div class="brand-mark">К</div>
+      <div class="eyebrow">КОТОМАТИКА</div>
+      <h1>Admin</h1>
+      <p class="muted">Заявки с kotomatika.ru</p>
+      <form id="loginForm">
+        <label>Логин<input id="username" value="admin" autocomplete="username" required></label>
+        <label>Пароль<input id="password" type="password" autocomplete="current-password" required></label>
+        <button class="btn primary" type="submit">Войти</button>
+        <div id="loginError" class="error" hidden></div>
+      </form>
+      <p class="security-note">Пароль не сохраняется в браузере и используется только для защищённого запроса к API.</p>
+    </div>
+  </div>
+
+  <div id="appView" class="app" hidden>
+    <aside class="sidebar">
+      <a class="logo" href="#">
+        <span class="logo-icon">К</span>
+        <span><strong>КОТОМАТИКА</strong><small>Admin</small></span>
+      </a>
+      <nav><button class="nav-item active" type="button"><span>▤</span> Заявки</button></nav>
+      <div class="sidebar-bottom"><span class="secure-dot"></span><span>Защищённый вход</span></div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div><div class="eyebrow">CRM</div><h2>Заявки</h2></div>
+        <div class="top-actions">
+          <span id="lastUpdated" class="last-updated"></span>
+          <button id="refreshBtn" class="btn secondary" type="button">Обновить</button>
+          <button id="logoutBtn" class="btn ghost" type="button">Выйти</button>
+        </div>
+      </header>
+
+      <section class="stats">
+        <article class="stat-card"><span>Всего</span><strong id="statTotal">0</strong></article>
+        <article class="stat-card"><span>Новые</span><strong id="statNew">0</strong></article>
+        <article class="stat-card"><span>Сегодня</span><strong id="statToday">0</strong></article>
+        <article class="stat-card"><span>Классы</span><strong id="statGrades">0</strong></article>
+      </section>
+
+      <section class="toolbar">
+        <label class="search"><span>⌕</span><input id="searchInput" type="search" placeholder="Имя, ученик, телефон, Telegram, цель"></label>
+        <select id="statusFilter"><option value="">Все статусы</option></select>
+        <select id="gradeFilter"><option value="">Все классы</option></select>
+      </section>
+
+      <div id="globalError" class="error banner" hidden></div>
+      <div id="loading" class="loading" hidden>Загружаю заявки…</div>
+
+      <section class="table-card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Дата</th><th>Родитель / ученик</th><th>Класс</th><th>Цель</th><th>Контакт</th><th>Статус</th><th>Комментарий</th></tr></thead>
+            <tbody id="leadsBody"></tbody>
+          </table>
+        </div>
+        <div id="emptyState" class="empty" hidden><strong>Заявок не найдено</strong><span>Измени фильтры или обнови данные.</span></div>
+      </section>
+    </main>
+  </div>
+  <script src="./app.js?v=1" defer></script>
+</body>
+</html>

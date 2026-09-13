@@ -920,7 +920,12 @@ function renderLeadTasks(){
   $('#leadTasks').innerHTML=arr.map(taskItem).join('')||empty('Задач по заявке нет');
 }
 function ensureOption(select,value){if(value&&![...select.options].some(o=>o.value===value)){const o=document.createElement('option');o.value=value;o.textContent=value;select.appendChild(o)}}
-$('#close').addEventListener('click',()=>$('#drawer').classList.remove('open')); $('#drawer .shade').addEventListener('click',()=>$('#drawer').classList.remove('open'));
+function closeLeadDrawer(){
+  $('#drawer').classList.remove('open');
+  if(typeof closeTrialPicker==='function')closeTrialPicker();
+}
+$('#close').addEventListener('click',closeLeadDrawer);
+$('#drawer .shade').addEventListener('click',closeLeadDrawer);
 $$('[data-q]').forEach(b=>b.addEventListener('click',()=>{$('#leadStatus').value=b.dataset.q;if(currentLead){currentLead={...currentLead,status:b.dataset.q};renderLeadSmart();}}));
 $('#save').addEventListener('click',async()=>{
   if(!currentLead)return; const btn=$('#save'); btn.disabled=true; btn.textContent='Сохраняем…';
@@ -955,7 +960,7 @@ $('#deleteLead').addEventListener('click',async()=>{
     await bootstrap();
     toast('Заявка удалена');
   }catch(e){
-    showError(e.message);
+    showError(`Не удалось удалить заявку: ${e.message}`);
   }finally{
     btn.disabled=false;
     btn.textContent='Удалить заявку';
@@ -2812,9 +2817,19 @@ $('#logoutCurrent').onclick=async()=>{
 };
 
 // ---------- Модальные окна, задачи, оплаты, занятия ----------
-function openModal(id){$('#modalShade').hidden=false;$(id).hidden=false}
-function closeModals(){[$('#taskModal'),$('#paymentModal'),$('#lessonModal'),$('#modalShade')].forEach(x=>x.hidden=true)}
-$$('[data-modal-close]').forEach(b=>b.onclick=closeModals);$('#modalShade').onclick=closeModals;
+function openModal(id){
+  $('#modalShade').hidden=false;
+  const modal=$(id);
+  if(modal)modal.hidden=false;
+}
+function closeModals(){
+  $$('.modal').forEach(x=>x.hidden=true);
+  const shade=$('#modalShade');
+  if(shade)shade.hidden=true;
+}
+$$('[data-modal-close]').forEach(b=>b.onclick=closeModals);
+$('#modalShade').onclick=closeModals;
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModals()});
 function openTaskModal(ctx={}){taskContext={leadId:ctx.leadId||'',studentId:ctx.studentId||''};$('#taskTitle').value='';$('#taskDue').value=nowInput(0,null,0);$('#taskType').value='Перезвонить';openModal('#taskModal')}
 $('#newTaskToday').onclick=()=>openTaskModal();
 $('#quickTaskToday').onclick=()=>openTaskModal();
@@ -2980,7 +2995,7 @@ $('#authForm').addEventListener('submit',async e=>{
 });
 
 // PWA
-let promptEvt=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();promptEvt=e;$('#install').classList.add('show')});$('#installBtn').onclick=async()=>{if(!promptEvt)return;promptEvt.prompt();await promptEvt.userChoice;promptEvt=null;$('#install').classList.remove('show')};if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=master13').catch(()=>{}));
+let promptEvt=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();promptEvt=e;$('#install').classList.add('show')});$('#installBtn').onclick=async()=>{if(!promptEvt)return;promptEvt.prompt();await promptEvt.userChoice;promptEvt=null;$('#install').classList.remove('show')};if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=master14').catch(()=>{}));
 
 // Старт
 (async()=>{

@@ -1,5 +1,5 @@
 
-const API_URL = "https://functions.yandexcloud.net/d4e4i8rj8n22jfjcnmej";
+const API_URL = "https://functions.yandexcloud.net/d4ebvaiffdtsos840t16";
 const MOSCOW_TZ = 'Europe/Moscow';
 let authHeader = '', allLeads = [];
 const $ = id => document.getElementById(id);

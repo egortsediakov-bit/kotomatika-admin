@@ -84,11 +84,12 @@ function empty(text='Пока пусто'){return `<div class="empty-mini">${esc
 
 async function api(action, payload={}, useAuth=true){
   const headers={'Content-Type':'application/json','Accept':'application/json'};
-  if(useAuth && token) headers['X-Kotomatika-Session']=token;
+  const body={action,...payload};
+  if(useAuth && token) body.sessionToken=token;
   setSync('Синхронизация…');
   let r;
   try{
-    r=await fetch(API_URL,{method:'POST',mode:'cors',cache:'no-store',headers,body:JSON.stringify({action,...payload})});
+    r=await fetch(API_URL,{method:'POST',mode:'cors',cache:'no-store',headers,body:JSON.stringify(body)});
   }catch(e){ setSync('Нет связи',false); throw new Error('Не удалось связаться с API'); }
   const d=await r.json().catch(()=>({}));
   if(r.status===401 && useAuth){
@@ -413,7 +414,7 @@ $('#authForm').addEventListener('submit',async e=>{
 });
 
 // PWA
-let promptEvt=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();promptEvt=e;$('#install').classList.add('show')});$('#installBtn').onclick=async()=>{if(!promptEvt)return;promptEvt.prompt();await promptEvt.userChoice;promptEvt=null;$('#install').classList.remove('show')};if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=pro3').catch(()=>{}));
+let promptEvt=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();promptEvt=e;$('#install').classList.add('show')});$('#installBtn').onclick=async()=>{if(!promptEvt)return;promptEvt.prompt();await promptEvt.userChoice;promptEvt=null;$('#install').classList.remove('show')};if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=pro4').catch(()=>{}));
 
 // Старт
 (async()=>{

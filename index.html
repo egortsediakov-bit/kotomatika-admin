@@ -9,7 +9,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="assets/icon-192.png">
   <link rel="apple-touch-icon" href="assets/icon-192.png">
-  <link rel="stylesheet" href="styles.css?v=pro4">
+  <link rel="stylesheet" href="styles.css?v=master12">
 </head>
 <body>
 <div id="authOverlay" class="auth-overlay">
@@ -48,6 +48,7 @@
     <button data-page="calendar">Календарь</button>
     <small>ШКОЛА</small>
     <button data-page="students">Ученики</button>
+    <button data-page="groups">Группы</button>
     <button data-page="teachers">Преподаватели</button>
     <button data-page="finance">Финансы</button>
     <small>АНАЛИТИКА</small>
@@ -62,15 +63,56 @@
     <div id="globalToast" class="toast" hidden></div>
 
     <section class="page active" id="page-today">
-      <div class="head"><div><em>Рабочий день</em><h1>Сегодня</h1></div><p id="todayDate">Что требует внимания прямо сейчас</p></div>
-      <div class="metrics">
-        <article><span>Новые заявки</span><strong id="t-new">0</strong></article>
-        <article><span>Пробные сегодня</span><strong id="t-trials">0</strong></article>
-        <article><span>Задачи просрочены</span><strong id="t-tasks">0</strong></article>
-        <article><span>Оплаты требуют внимания</span><strong id="t-payments">0</strong></article>
+      <div class="today-hero">
+        <div>
+          <em>Рабочий день</em>
+          <h1>Сегодня</h1>
+          <p id="todayDate">Что требует внимания прямо сейчас</p>
+        </div>
+        <div class="today-focus-card">
+          <span>Требуют внимания</span>
+          <strong id="t-focus">0</strong>
+          <small id="t-focusText">Всё спокойно</small>
+          <button id="todayRefresh" type="button">↻ Обновить сводку</button>
+        </div>
       </div>
+
+      <div class="today-actions">
+        <button id="quickTaskToday" type="button"><b>＋</b><span>Новая задача</span></button>
+        <button id="quickLessonToday" type="button"><b>◷</b><span>Добавить занятие</span></button>
+        <button id="quickPaymentToday" type="button"><b>₽</b><span>Добавить оплату</span></button>
+        <button data-jump="leads" type="button"><b>↗</b><span>Все заявки</span></button>
+      </div>
+
+      <div class="metrics today-metrics">
+        <article><span>Новые сегодня</span><strong id="t-new">0</strong><small>заявок</small></article>
+        <article><span>Без ответа 2+ часа</span><strong id="t-stale">0</strong><small>нужно связаться</small></article>
+        <article><span>Пробные сегодня</span><strong id="t-trials">0</strong><small>в расписании</small></article>
+        <article><span>Занятия сегодня</span><strong id="t-lessons">0</strong><small>обычных занятий</small></article>
+        <article><span>Просроченные задачи</span><strong id="t-tasks">0</strong><small>не выполнены</small></article>
+        <article><span>Просроченные оплаты</span><strong id="t-payments">0</strong><small>активных учеников</small></article>
+      </div>
+
+      <div class="today-command-grid">
+        <article class="panel attention-panel">
+          <div class="panel-head">
+            <div><em>Приоритет</em><h3>Что сделать сначала</h3></div>
+            <span id="priorityCaption" class="panel-caption">По срочности</span>
+          </div>
+          <div id="todayPriority" class="priority-list"></div>
+        </article>
+
+        <article class="panel timeline-panel">
+          <div class="panel-head">
+            <div><em>День</em><h3>Лента на сегодня</h3></div>
+            <button data-jump="calendar">Календарь →</button>
+          </div>
+          <div id="todayTimeline" class="day-timeline"></div>
+        </article>
+      </div>
+
       <div class="today-grid">
-        <article class="panel"><div class="panel-head"><div><em>Заявки</em><h3>Без ответа</h3></div><button data-jump="leads">Все заявки →</button></div><div id="todayLeads" class="compact-list"></div></article>
+        <article class="panel"><div class="panel-head"><div><em>Заявки</em><h3>Новые и без ответа</h3></div><button data-jump="leads">Все заявки →</button></div><div id="todayLeads" class="compact-list"></div></article>
         <article class="panel"><div class="panel-head"><div><em>Расписание</em><h3>Ближайшие пробные</h3></div><button data-jump="calendar">Календарь →</button></div><div id="todayTrials" class="compact-list"></div></article>
         <article class="panel"><div class="panel-head"><div><em>Задачи</em><h3>Нужно сделать</h3></div><button id="newTaskToday">+ Задача</button></div><div id="todayTasks" class="compact-list"></div></article>
         <article class="panel"><div class="panel-head"><div><em>Финансы</em><h3>Ближайшие оплаты</h3></div><button data-jump="finance">Финансы →</button></div><div id="todayPayments" class="compact-list"></div></article>
@@ -78,75 +120,520 @@
     </section>
 
     <section class="page" id="page-leads">
-      <div class="head"><div><em>Продажи</em><h1>Заявки</h1></div><p>Новые обращения и текущая воронка</p></div>
-      <div class="metrics">
-        <article><span>Новые</span><strong id="m-new">0</strong></article>
-        <article><span>Связались</span><strong id="m-contacted">0</strong></article>
-        <article><span>Пробный урок</span><strong id="m-trial">0</strong></article>
-        <article><span>Оплатили</span><strong id="m-paid">0</strong></article>
+      <div class="head">
+        <div><em>Продажи</em><h1>Заявки</h1></div>
+        <div class="head-actions">
+          <div class="lead-view-toggle">
+            <button id="leadKanbanMode" class="active" type="button">Kanban</button>
+            <button id="leadTableMode" type="button">Таблица</button>
+          </div>
+        </div>
       </div>
-      <div class="tools">
+
+      <div class="metrics lead-metrics">
+        <article><span>Новые</span><strong id="m-new">0</strong><small>в работе</small></article>
+        <article><span>Без ответа 2+ ч.</span><strong id="m-stale">0</strong><small>нужно связаться</small></article>
+        <article><span>Пробные 7 дней</span><strong id="m-trial-week">0</strong><small>запланировано</small></article>
+        <article><span>Без преподавателя</span><strong id="m-no-teacher">0</strong><small>будущих пробных</small></article>
+        <article><span>Оплатили</span><strong id="m-paid">0</strong><small>заявок</small></article>
+        <article><span>Требуют внимания</span><strong id="m-attention">0</strong><small>по приоритету</small></article>
+      </div>
+
+      <div class="lead-quick-filters">
+        <button type="button" data-lead-quick="" class="active">Все</button>
+        <button type="button" data-lead-quick="attention">⚡ Требуют внимания <b id="q-attention">0</b></button>
+        <button type="button" data-lead-quick="stale">Без ответа <b id="q-stale">0</b></button>
+        <button type="button" data-lead-quick="trial7">Пробные 7 дней <b id="q-trial">0</b></button>
+        <button type="button" data-lead-quick="noTeacher">Без преподавателя <b id="q-teacher">0</b></button>
+        <button type="button" data-lead-quick="noTask">Без задачи <b id="q-task">0</b></button>
+      </div>
+
+      <div class="tools lead-tools">
         <input id="search" placeholder="Поиск по имени, телефону, Telegram, цели…">
         <select id="status"><option value="">Все статусы</option><option>Новая</option><option>Связались</option><option>Пробный</option><option>Пробный проведён</option><option>Записан</option><option>Оплатил</option><option>Не отвечает</option><option>Отказ</option><option>Отложено</option><option>Не подходит</option></select>
         <select id="teacherFilter"><option value="">Все преподаватели</option><option>Егор</option><option>Миша</option><option>Иван</option><option>Никита</option></select>
+        <select id="leadSourceFilter"><option value="">Все источники</option></select>
+        <select id="leadSort">
+          <option value="priority">Сначала важные</option>
+          <option value="new">Сначала новые</option>
+          <option value="old">Сначала старые</option>
+          <option value="trial">Ближайшие пробные</option>
+        </select>
       </div>
-      <div class="table"><div class="scroll"><table><thead><tr><th>Время</th><th>Родитель / ученик</th><th>Цель</th><th>Контакт</th><th>Преподаватель</th><th>Статус</th></tr></thead><tbody id="rows"></tbody></table></div></div>
+
+      <div id="leadBulkBar" class="lead-bulk-bar" hidden>
+        <div><span>Выбрано</span><strong id="leadSelectedCount">0</strong></div>
+        <select id="leadBulkStatus">
+          <option value="">Изменить статус…</option>
+          <option>Новая</option><option>Связались</option><option>Пробный</option><option>Пробный проведён</option><option>Записан</option><option>Оплатил</option><option>Не отвечает</option><option>Отказ</option><option>Отложено</option><option>Не подходит</option>
+        </select>
+        <select id="leadBulkTeacher">
+          <option value="">Назначить преподавателя…</option>
+          <option>Не назначен</option><option>Егор</option><option>Миша</option><option>Иван</option><option>Никита</option>
+        </select>
+        <button id="leadBulkApply" type="button">Применить</button>
+        <button id="leadBulkClear" type="button">Снять выбор</button>
+        <small id="leadBulkProgress"></small>
+      </div>
+
+      <div id="leadKanbanView" class="lead-kanban-wrap">
+        <div id="leadKanban" class="lead-kanban"></div>
+      </div>
+
+      <div id="leadTableView" class="table lead-table-pro" hidden>
+        <div class="scroll">
+          <table>
+            <thead><tr>
+              <th class="lead-check-cell"><input id="leadSelectAll" type="checkbox" aria-label="Выбрать все"></th>
+              <th>Приоритет</th><th>Время</th><th>Родитель / ученик</th><th>Цель</th><th>Контакт</th><th>Преподаватель</th><th>Статус</th>
+            </tr></thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+      </div>
     </section>
 
     <section class="page" id="page-calendar">
-      <div class="head"><div><em>Расписание</em><h1>Календарь</h1></div><div class="head-actions"><button id="calendarToday" class="soft-btn">Сегодня</button><button id="newLessonBtn" class="primary-btn">+ Занятие</button></div></div>
-      <div class="calendar-layout">
+      <div class="head">
+        <div><em>Расписание</em><h1>Календарь</h1></div>
+        <div class="head-actions">
+          <button id="calendarToday" class="soft-btn">Сегодня</button>
+          <button id="newLessonBtn" class="primary-btn">+ Занятие</button>
+        </div>
+      </div>
+
+      <div class="metrics calendar-metrics">
+        <article><span>Сегодня</span><strong id="cal-m-today">0</strong><small>занятий и пробных</small></article>
+        <article><span>7 дней</span><strong id="cal-m-week">0</strong><small>событий</small></article>
+        <article><span>Конфликты</span><strong id="cal-m-conflicts">0</strong><small>пересечений</small></article>
+        <article><span>Без преподавателя</span><strong id="cal-m-unassigned">0</strong><small>будущих пробных</small></article>
+      </div>
+
+      <div class="calendar-commandbar">
+        <div class="calendar-view-toggle">
+          <button id="calendarWeekMode" class="active" type="button">Неделя</button>
+          <button id="calendarMonthMode" type="button">Месяц</button>
+        </div>
+        <div class="calendar-nav">
+          <button id="crmCalPrev" type="button">‹</button>
+          <strong id="crmCalTitle">Неделя</strong>
+          <button id="crmCalNext" type="button">›</button>
+        </div>
+        <label class="calendar-teacher-filter">
+          <span>Преподаватель</span>
+          <select id="calendarTeacherFilter">
+            <option value="">Все преподаватели</option>
+            <option>Егор</option><option>Миша</option><option>Иван</option><option>Никита</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="calendar-layout calendar-layout-pro">
         <article class="panel crm-calendar-panel">
-          <div class="crm-cal-top"><button id="crmCalPrev">‹</button><h3 id="crmCalTitle"></h3><button id="crmCalNext">›</button></div>
-          <div class="crm-cal-week"><span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span></div>
-          <div id="crmCalendarGrid" class="crm-cal-grid"></div>
+          <div id="calendarWeekView" class="calendar-week-view">
+            <div id="calendarWeekGrid" class="calendar-week-grid"></div>
+          </div>
+
+          <div id="calendarMonthView" class="calendar-month-view" hidden>
+            <div class="crm-cal-week"><span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span></div>
+            <div id="crmCalendarGrid" class="crm-cal-grid"></div>
+          </div>
         </article>
-        <article class="panel agenda-panel"><div class="panel-head"><div><em>День</em><h3 id="agendaTitle">События</h3></div></div><div id="dayAgenda" class="agenda-list"></div></article>
+
+        <article class="panel agenda-panel">
+          <div class="panel-head">
+            <div><em>Выбранный день</em><h3 id="agendaTitle">События</h3></div>
+            <button id="calendarAddForDay" type="button">+ Добавить</button>
+          </div>
+          <div id="agendaSummary" class="agenda-summary"></div>
+          <div id="dayAgenda" class="agenda-list"></div>
+        </article>
+      </div>
+
+      <div class="calendar-bottom-grid">
+        <article class="panel">
+          <div class="panel-head">
+            <div><em>Контроль</em><h3>Конфликты расписания</h3></div>
+            <span id="calendarConflictCaption" class="panel-caption"></span>
+          </div>
+          <div id="calendarConflictList" class="calendar-conflict-list"></div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head">
+            <div><em>Команда</em><h3>Нагрузка на неделю</h3></div>
+            <span class="panel-caption">занятия + пробные</span>
+          </div>
+          <div id="calendarTeacherLoad" class="calendar-teacher-load"></div>
+        </article>
       </div>
     </section>
 
     <section class="page" id="page-students">
       <div class="head"><div><em>База</em><h1>Ученики</h1></div><div class="head-actions"><button id="newStudentBtn" class="primary-btn">+ Ученик</button></div></div>
+
+      <div class="metrics student-page-metrics">
+        <article><span>Активные</span><strong id="s-m-active">0</strong><small>учеников</small></article>
+        <article><span>Занятия 7 дней</span><strong id="s-m-lessons">0</strong><small>в расписании</small></article>
+        <article><span>Просрочены оплаты</span><strong id="s-m-overdue">0</strong><small>нужно связаться</small></article>
+        <article><span>План в месяц</span><strong id="s-m-plan">0 ₽</strong><small>по активным</small></article>
+      </div>
+
+      <div class="student-attention-strip">
+        <div><span>Требуют внимания</span><strong id="studentAttentionCount">0</strong></div>
+        <div id="studentAttentionText">Всё в порядке</div>
+        <button id="studentShowAttention" type="button">Показать</button>
+      </div>
+
       <div class="tools"><input id="studentSearch" placeholder="Поиск по ученику, родителю, контакту…"><select id="studentStatusFilter"><option value="">Все статусы</option><option>Активен</option><option>Пауза</option><option>Завершил</option><option>Архив</option></select><select id="studentTeacherFilter"><option value="">Все преподаватели</option><option>Егор</option><option>Миша</option><option>Иван</option><option>Никита</option></select></div>
       <div class="table"><div class="scroll"><table><thead><tr><th>Ученик</th><th>Класс</th><th>Программа</th><th>Преподаватель</th><th>Тариф</th><th>Следующая оплата</th><th>Статус</th></tr></thead><tbody id="studentRows"></tbody></table></div></div>
     </section>
 
+    <section class="page" id="page-groups">
+      <div class="head">
+        <div><em>Школа</em><h1>Группы</h1></div>
+        <div class="head-actions"><button id="newGroupBtn" class="primary-btn">+ Группа</button></div>
+      </div>
+
+      <div class="metrics group-metrics">
+        <article><span>Активные группы</span><strong id="g-m-active">0</strong><small>идут или набираются</small></article>
+        <article><span>Детей в группах</span><strong id="g-m-students">0</strong><small>активных участников</small></article>
+        <article><span>Свободные места</span><strong id="g-m-free">0</strong><small>по всем группам</small></article>
+        <article><span>Занятий в неделю</span><strong id="g-m-slots">0</strong><small>регулярных слотов</small></article>
+        <article><span>Посещаемость месяца</span><strong id="g-m-attendance">—</strong><small>по отмеченным занятиям</small></article>
+      </div>
+
+      <div class="group-tools">
+        <input id="groupSearch" placeholder="Поиск по названию, классу, программе…">
+        <select id="groupTeacherFilter"><option value="">Все преподаватели</option><option>Егор</option><option>Миша</option><option>Иван</option><option>Никита</option></select>
+        <select id="groupGradeFilter"><option value="">Все классы</option></select>
+        <select id="groupStatusFilter"><option value="">Все статусы</option><option>Набор</option><option>Активна</option><option>Пауза</option><option>Архив</option></select>
+      </div>
+
+      <div id="groupsGrid" class="groups-grid"></div>
+    </section>
+
     <section class="page" id="page-teachers">
-      <div class="head"><div><em>Команда</em><h1>Преподаватели</h1></div><p>Нагрузка, ученики и ближайшие занятия</p></div>
-      <div id="teachersGrid" class="teacher-grid"></div>
+      <div class="head"><div><em>Команда</em><h1>Преподаватели</h1></div><p>Нагрузка, ученики, расписание и распределение новых клиентов</p></div>
+
+      <div class="metrics teacher-page-metrics">
+        <article><span>Активные</span><strong id="tr-m-active">0</strong><small>преподавателей</small></article>
+        <article><span>Ученики</span><strong id="tr-m-students">0</strong><small>активных</small></article>
+        <article><span>События 7 дней</span><strong id="tr-m-week">0</strong><small>занятия + пробные</small></article>
+        <article><span>Нужно назначить</span><strong id="tr-m-unassigned">0</strong><small>учеников и пробных</small></article>
+      </div>
+
+      <div id="teacherAdvisor" class="teacher-advisor">
+        <div class="teacher-advisor-icon">★</div>
+        <div class="teacher-advisor-copy">
+          <span>Кому назначить следующего ученика</span>
+          <strong id="teacherAdvisorName">—</strong>
+          <small id="teacherAdvisorMeta">Рекомендация появится после загрузки данных</small>
+        </div>
+        <div class="teacher-advisor-load">
+          <span>Нагрузка</span>
+          <b id="teacherAdvisorLoad">—</b>
+        </div>
+        <button id="teacherAdvisorOpen" type="button">Открыть</button>
+      </div>
+
+      <div class="teacher-tools">
+        <div>
+          <b>Команда</b>
+          <span id="teacherTeamHint">Распределение по текущей нагрузке</span>
+        </div>
+        <label><input id="teacherOnlyActive" type="checkbox" checked> Только активные</label>
+      </div>
+
+      <div id="teachersGrid" class="teacher-grid teacher-grid-pro"></div>
     </section>
 
     <section class="page" id="page-finance">
-      <div class="head"><div><em>Деньги</em><h1>Финансы</h1></div><div class="head-actions"><button id="newPaymentBtn" class="primary-btn">+ Оплата</button></div></div>
-      <div class="metrics">
-        <article><span>Получено за месяц</span><strong id="f-month">0 ₽</strong></article>
-        <article><span>План активных учеников</span><strong id="f-plan">0 ₽</strong></article>
-        <article><span>Просрочено</span><strong id="f-overdue">0 ₽</strong></article>
-        <article><span>Оплат в этом месяце</span><strong id="f-count">0</strong></article>
+      <div class="head">
+        <div><em>Деньги</em><h1>Финансы</h1></div>
+        <div class="head-actions"><button id="newPaymentBtn" class="primary-btn">+ Оплата</button></div>
       </div>
-      <div class="finance-grid">
-        <article class="panel"><div class="panel-head"><div><em>Контроль</em><h3>Ожидаемые оплаты</h3></div></div><div id="duePayments" class="compact-list"></div></article>
-        <article class="panel"><div class="panel-head"><div><em>История</em><h3>Последние оплаты</h3></div></div><div id="paymentList" class="compact-list"></div></article>
+
+      <div class="finance-hero">
+        <div>
+          <span>Собрано в этом месяце</span>
+          <strong id="f-month">0 ₽</strong>
+          <div class="finance-hero-progress"><i id="f-plan-fill"></i></div>
+          <small id="f-collection">0% от месячного плана</small>
+        </div>
+        <div class="finance-hero-side">
+          <span>Прогноз на 30 дней</span>
+          <strong id="f-forecast">0 ₽</strong>
+          <small id="f-forecast-meta">ожидаемые оплаты активных учеников</small>
+        </div>
+      </div>
+
+      <div class="metrics finance-metrics">
+        <article><span>План активных учеников</span><strong id="f-plan">0 ₽</strong><small>в месяц</small></article>
+        <article><span>Просрочено</span><strong id="f-overdue">0 ₽</strong><small id="f-overdue-count">0 учеников</small></article>
+        <article><span>Ожидается 7 дней</span><strong id="f-week">0 ₽</strong><small id="f-week-count">0 оплат</small></article>
+        <article><span>Оплат за месяц</span><strong id="f-count">0</strong><small id="f-average">средний чек 0 ₽</small></article>
+      </div>
+
+      <div id="financeAlert" class="finance-alert">
+        <div>
+          <span>Контроль задолженности</span>
+          <strong id="financeAlertTitle">Просроченных оплат нет</strong>
+          <small id="financeAlertMeta">Платежи идут по плану</small>
+        </div>
+        <button id="financeShowDebtors" type="button">Показать должников</button>
+      </div>
+
+      <div class="finance-dashboard-grid">
+        <article class="panel finance-chart-panel">
+          <div class="panel-head">
+            <div><em>Динамика</em><h3>Поступления за 6 месяцев</h3></div>
+            <span id="financeTrendCaption" class="panel-caption"></span>
+          </div>
+          <div id="financeTrend" class="finance-bars"></div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head">
+            <div><em>Календарь</em><h3>Оплаты по срокам</h3></div>
+            <span id="financeCalendarCaption" class="panel-caption"></span>
+          </div>
+          <div id="financePaymentCalendar" class="finance-payment-calendar"></div>
+        </article>
+      </div>
+
+      <div class="finance-grid finance-grid-pro">
+        <article class="panel">
+          <div class="panel-head">
+            <div><em>Контроль</em><h3>Кому нужно напомнить</h3></div>
+            <button id="financeToggleDue" type="button">Все ожидаемые</button>
+          </div>
+          <div id="duePayments" class="compact-list"></div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head">
+            <div><em>История</em><h3>Последние оплаты</h3></div>
+            <span id="financePaymentsCaption" class="panel-caption"></span>
+          </div>
+          <div id="paymentList" class="compact-list"></div>
+        </article>
+      </div>
+
+      <div class="finance-grid finance-grid-pro">
+        <article class="panel">
+          <div class="panel-head">
+            <div><em>Способы оплаты</em><h3>Структура поступлений</h3></div>
+          </div>
+          <div id="financeMethods" class="finance-methods"></div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head">
+            <div><em>План</em><h3>Ближайшие 30 дней</h3></div>
+          </div>
+          <div id="financeForecastList" class="compact-list"></div>
+        </article>
       </div>
     </section>
 
     <section class="page" id="page-stats">
-      <div class="head"><div><em>Аналитика</em><h1>Статистика</h1></div><p>Воронка, источники и команда</p></div>
-      <div class="metrics"><article><span>Заявка → пробный</span><strong id="conv1">0%</strong></article><article><span>Пробный → оплата</span><strong id="conv2">0%</strong></article><article><span>Оплачено учеников</span><strong id="paidStudents">0</strong></article><article><span>Всего заявок</span><strong id="allLeadsStat">0</strong></article></div>
-      <div class="stats-grid">
-        <article class="chart"><h3>Воронка</h3><div id="bars"></div></article>
-        <article class="chart"><h3>Источники заявок</h3><div id="sourceBars"></div></article>
-        <article class="chart wide"><h3>Преподаватели</h3><div id="teacherStats" class="teacher-stats"></div></article>
+      <div class="head">
+        <div><em>Аналитика</em><h1>Статистика</h1></div>
+        <div class="stats-filters">
+          <select id="statsPeriod">
+            <option value="30">30 дней</option>
+            <option value="90" selected>90 дней</option>
+            <option value="365">12 месяцев</option>
+            <option value="all">Всё время</option>
+          </select>
+          <select id="statsSource"><option value="">Все источники</option></select>
+        </div>
+      </div>
+
+      <div class="stats-hero">
+        <div>
+          <span>Конверсия заявка → оплата</span>
+          <strong id="statsMainConversion">0%</strong>
+          <small id="statsMainCaption">0 оплат из 0 заявок</small>
+        </div>
+        <div class="stats-hero-insights">
+          <article><span>Лучший источник</span><strong id="statsBestSource">—</strong><small id="statsBestSourceMeta">Недостаточно данных</small></article>
+          <article><span>Лучший преподаватель</span><strong id="statsBestTeacher">—</strong><small id="statsBestTeacherMeta">Недостаточно данных</small></article>
+        </div>
+      </div>
+
+      <div class="metrics stats-metrics">
+        <article><span>Всего заявок</span><strong id="allLeadsStat">0</strong><small id="statsLeadDelta">за период</small></article>
+        <article><span>Связались</span><strong id="statsContacted">0%</strong><small id="statsContactedCount">0 заявок</small></article>
+        <article><span>Заявка → пробный</span><strong id="conv1">0%</strong><small id="statsTrialCount">0 пробных</small></article>
+        <article><span>Пробный → оплата</span><strong id="conv2">0%</strong><small id="statsPaidCount">0 оплат</small></article>
+        <article><span>Активные ученики</span><strong id="paidStudents">0</strong><small>сейчас в базе</small></article>
+        <article><span>Не дошли до оплаты</span><strong id="statsLost">0</strong><small id="statsLostMeta">закрытых заявок</small></article>
+      </div>
+
+      <div class="stats-dashboard-grid">
+        <article class="panel stats-funnel-panel">
+          <div class="panel-head"><div><em>Воронка</em><h3>Путь заявки</h3></div><span id="statsFunnelCaption" class="panel-caption"></span></div>
+          <div id="statsFunnel" class="stats-funnel"></div>
+        </article>
+        <article class="panel stats-outcomes-panel">
+          <div class="panel-head"><div><em>Результат</em><h3>Текущие статусы</h3></div><span id="statsOutcomeCaption" class="panel-caption"></span></div>
+          <div id="statsOutcomes" class="stats-outcomes"></div>
+        </article>
+      </div>
+
+      <div class="stats-dashboard-grid">
+        <article class="panel stats-month-panel">
+          <div class="panel-head"><div><em>Динамика</em><h3>Заявки и оплаты по месяцам</h3></div><span id="statsMonthCaption" class="panel-caption">6 месяцев</span></div>
+          <div id="statsMonthChart" class="stats-month-chart"></div>
+          <div class="stats-chart-legend"><span><i class="lead"></i>Заявки</span><span><i class="paid"></i>Оплаты</span></div>
+        </article>
+        <article class="panel">
+          <div class="panel-head"><div><em>Скорость</em><h3>Контроль обработки</h3></div></div>
+          <div class="stats-quality">
+            <article><span>Новые 2+ часа</span><strong id="statsStale2">0</strong><small>ждут ответа</small></article>
+            <article><span>Новые 24+ часа</span><strong id="statsStale24">0</strong><small>критичные</small></article>
+            <article><span>Пробные без учителя</span><strong id="statsNoTeacherTrials">0</strong><small>нужно назначить</small></article>
+            <article><span>Без следующей задачи</span><strong id="statsNoTask">0</strong><small>новые заявки</small></article>
+          </div>
+        </article>
+      </div>
+
+      <div class="panel stats-table-panel">
+        <div class="panel-head"><div><em>Маркетинг</em><h3>Эффективность источников</h3></div><span id="statsSourceCaption" class="panel-caption"></span></div>
+        <div class="scroll"><table class="stats-table">
+          <thead><tr><th>Источник</th><th>Заявки</th><th>Пробные</th><th>Оплаты</th><th>В пробный</th><th>В оплату</th></tr></thead>
+          <tbody id="statsSourceRows"></tbody>
+        </table></div>
+      </div>
+
+      <div class="panel stats-table-panel">
+        <div class="panel-head"><div><em>Команда</em><h3>Эффективность преподавателей</h3></div><span id="statsTeacherCaption" class="panel-caption"></span></div>
+        <div class="scroll"><table class="stats-table">
+          <thead><tr><th>Преподаватель</th><th>Заявки</th><th>Пробные</th><th>Оплаты</th><th>Конверсия</th><th>Активные ученики</th><th>Нагрузка</th></tr></thead>
+          <tbody id="statsTeacherRows"></tbody>
+        </table></div>
       </div>
     </section>
 
     <section class="page" id="page-settings">
-      <div class="head"><div><em>Система</em><h1>Настройки</h1></div><p>Интеграции и безопасность</p></div>
-      <div class="settings pro-settings">
-        <article><h3>Telegram-напоминания</h3><p id="telegramState">Проверяю подключение…</p><button id="sendTelegramDigest" class="soft-btn">Отправить сводку сейчас</button><small>Автоматическая отправка подключается отдельным часовым триггером Yandex Cloud.</small></article>
-        <article><h3>Безопасность</h3><p id="sessionInfo">Серверная сессия активна.</p><button id="revokeSessions" class="soft-btn">Завершить другие сессии</button><small>После 5 неверных попыток вход блокируется на 15 минут.</small></article>
-        <article class="wide-card"><h3>Последние входы</h3><div id="authLog" class="auth-log"></div></article>
-        <article class="wide-card"><h3>Преподаватели</h3><div id="teacherSettings" class="teacher-settings"></div></article>
+      <div class="head">
+        <div><em>Система</em><h1>Настройки</h1></div>
+        <div class="head-actions">
+          <button id="runDiagnostics" class="soft-btn">Проверить систему</button>
+          <button id="settingsRefresh" class="primary-btn">↻ Обновить</button>
+        </div>
+      </div>
+
+      <div class="system-health-hero">
+        <div class="system-health-main">
+          <div id="systemHealthIcon" class="system-health-icon">●</div>
+          <div>
+            <span>Состояние CRM</span>
+            <strong id="systemHealthTitle">Проверяю…</strong>
+            <small id="systemHealthMeta">Данные о системе появятся после синхронизации</small>
+          </div>
+        </div>
+        <div class="system-health-version">
+          <span>Версия</span>
+          <strong>MASTER v8</strong>
+          <small id="backendVersion">Backend: —</small>
+        </div>
+      </div>
+
+      <div class="system-status-grid">
+        <article id="statusApi" class="system-status-card">
+          <div class="system-status-top"><span>API</span><i>●</i></div>
+          <strong id="statusApiTitle">Проверяю</strong>
+          <small id="statusApiMeta">Yandex Cloud Function</small>
+        </article>
+        <article id="statusDb" class="system-status-card">
+          <div class="system-status-top"><span>YDB</span><i>●</i></div>
+          <strong id="statusDbTitle">Проверяю</strong>
+          <small id="statusDbMeta">База CRM</small>
+        </article>
+        <article id="statusTelegram" class="system-status-card">
+          <div class="system-status-top"><span>Telegram</span><i>●</i></div>
+          <strong id="statusTelegramTitle">Проверяю</strong>
+          <small id="statusTelegramMeta">Напоминания и сводки</small>
+        </article>
+        <article id="statusSession" class="system-status-card">
+          <div class="system-status-top"><span>Сессия</span><i>●</i></div>
+          <strong id="statusSessionTitle">Активна</strong>
+          <small id="statusSessionMeta">Срок действия —</small>
+        </article>
+      </div>
+
+      <div id="diagnosticsWarnings" class="diagnostics-warnings" hidden></div>
+
+      <div class="settings settings-pro-v8">
+        <article class="settings-card telegram-settings-card">
+          <div class="settings-card-head">
+            <div class="settings-card-icon">✈</div>
+            <div><span>Интеграция</span><h3>Telegram</h3></div>
+          </div>
+          <p id="telegramState">Проверяю подключение…</p>
+          <div class="settings-actions-row">
+            <button id="sendTelegramDigest" class="soft-btn">Отправить сводку</button>
+          </div>
+          <small>Для автоматических напоминаний нужен отдельный периодический триггер Yandex Cloud.</small>
+        </article>
+
+        <article class="settings-card security-settings-card">
+          <div class="settings-card-head">
+            <div class="settings-card-icon">⌁</div>
+            <div><span>Доступ</span><h3>Безопасность</h3></div>
+          </div>
+          <p id="sessionInfo">Сессия активна.</p>
+          <div class="security-facts">
+            <div><span>Срок сессии</span><b>8 часов</b></div>
+            <div><span>Защита входа</span><b>5 попыток / 15 мин</b></div>
+            <div><span>Передача сессии</span><b>HTTPS JSON body</b></div>
+          </div>
+          <div class="settings-actions-row">
+            <button id="revokeSessions" class="soft-btn">О сессиях</button>
+            <button id="logoutCurrent" class="danger-outline-btn">Выйти на этом устройстве</button>
+          </div>
+          <small>Сессии подписанные и автоматически истекают. Смена пароля немедленно делает старые сессии недействительными.</small>
+        </article>
+
+        <article class="wide-card settings-card diagnostics-card">
+          <div class="panel-head">
+            <div><em>Диагностика</em><h3>Хранилище и данные</h3></div>
+            <span id="diagnosticsCheckedAt" class="panel-caption">ещё не проверялось</span>
+          </div>
+          <div id="diagnosticsTables" class="diagnostics-tables">
+            <div class="diagnostic-placeholder">Нажмите «Проверить систему», чтобы проверить API и таблицы CRM.</div>
+          </div>
+        </article>
+
+        <article class="wide-card settings-card">
+          <div class="panel-head">
+            <div><em>Безопасность</em><h3>Последние события входа</h3></div>
+            <span id="authLogCaption" class="panel-caption"></span>
+          </div>
+          <div id="authLog" class="auth-log auth-log-pro"></div>
+        </article>
+
+        <article class="wide-card settings-card">
+          <div class="panel-head">
+            <div><em>Команда</em><h3>Преподаватели</h3></div>
+            <span class="panel-caption">ёмкость и Telegram</span>
+          </div>
+          <div id="teacherSettings" class="teacher-settings"></div>
+        </article>
+
+        <article class="wide-card settings-card security-checklist-card">
+          <div class="panel-head"><div><em>Контроль</em><h3>Чек-лист безопасности</h3></div></div>
+          <div class="security-checklist">
+            <div class="done"><i>✓</i><span><b>HTTPS</b><small>GitHub Pages и Yandex Functions работают через HTTPS.</small></span></div>
+            <div class="done"><i>✓</i><span><b>Секреты не хранятся во frontend</b><small>Пароль и хэш остаются в переменных Yandex Cloud.</small></span></div>
+            <div class="done"><i>✓</i><span><b>Сессия ограничена по времени</b><small>Подписанный токен действует 8 часов.</small></span></div>
+            <div id="securityTelegramCheck"><i>•</i><span><b>Telegram</b><small>Проверяется автоматически.</small></span></div>
+            <div class="warn"><i>!</i><span><b>Ротация пароля</b><small>После завершения настройки рекомендуется заменить ранее использованный пароль и его SHA-256.</small></span></div>
+          </div>
+        </article>
       </div>
     </section>
   </main>
@@ -157,6 +644,7 @@
   <button data-page="leads">📥<span>Заявки</span></button>
   <button data-page="calendar">▦<span>Календарь</span></button>
   <button data-page="students">👨‍🎓<span>Ученики</span></button>
+  <button data-page="groups">👥<span>Группы</span></button>
   <button data-page="teachers">👨‍🏫<span>Учителя</span></button>
   <button data-page="finance">₽<span>Финансы</span></button>
   <button data-page="stats">📊<span>Статистика</span></button>
@@ -166,7 +654,33 @@
 <!-- Карточка заявки -->
 <div id="drawer" class="drawer"><div class="shade"></div><aside>
   <div class="drawer-top"><em>Карточка заявки</em><button id="close">×</button></div>
-  <h2 id="leadTitle"></h2><p id="leadMeta"></p><div class="card" id="details"></div>
+
+  <div class="lead-smart-head">
+    <div>
+      <div id="leadSmartBadges" class="lead-smart-badges"></div>
+      <h2 id="leadTitle"></h2>
+      <p id="leadMeta"></p>
+    </div>
+    <div id="leadAgeBox" class="lead-age-box"></div>
+  </div>
+
+  <div class="lead-funnel-card">
+    <div class="lead-funnel-head"><span>Воронка</span><small id="leadStageHint">Текущий этап</small></div>
+    <div id="leadFunnel" class="lead-funnel"></div>
+  </div>
+
+  <div id="leadNextAction" class="lead-next-action"></div>
+
+  <div class="lead-contact-card">
+    <div>
+      <span class="lead-card-label">Контакт</span>
+      <strong id="leadContactValue">—</strong>
+      <small id="leadContactHint">Связаться с клиентом</small>
+    </div>
+    <div id="leadContactActions" class="lead-contact-actions"></div>
+  </div>
+
+  <div class="card" id="details"></div>
   <div class="card"><h3>Быстрые действия</h3><div class="actions"><button data-q="Связались">Связались</button><button data-q="Пробный">На пробный</button><button data-q="Оплатил">Оплатил</button><button data-q="Отложено">Отложить</button></div></div>
   <div class="card"><h3>Обработка</h3>
     <label>Статус<select id="leadStatus"><option>Новая</option><option>Связались</option><option>Пробный</option><option>Пробный проведён</option><option>Записан</option><option>Оплатил</option><option>Не отвечает</option><option>Отказ</option><option>Отложено</option><option>Не подходит</option></select></label>
@@ -195,7 +709,51 @@
 <!-- Карточка ученика -->
 <div id="studentDrawer" class="drawer student-drawer"><div class="shade"></div><aside>
   <div class="drawer-top"><em>Карточка ученика</em><button id="studentClose">×</button></div>
-  <h2 id="studentDrawerTitle">Новый ученик</h2><p id="studentDrawerMeta"></p>
+
+  <div id="studentSmartHead" class="student-smart-head" hidden>
+    <div id="studentAvatar" class="student-avatar">У</div>
+    <div class="student-smart-title">
+      <div id="studentSmartBadges" class="student-smart-badges"></div>
+      <h2 id="studentDrawerTitle">Ученик</h2>
+      <p id="studentDrawerMeta"></p>
+    </div>
+  </div>
+  <div id="studentNewHead">
+    <h2 id="studentNewTitle">Новый ученик</h2>
+    <p>Создание карточки ученика</p>
+  </div>
+
+  <div id="studentSnapshot" class="student-snapshot" hidden>
+    <article><span>Абонемент</span><strong id="studentMonthlyPrice">0 ₽</strong><small id="studentTariffText">Тариф не указан</small></article>
+    <article><span>Оплачено в месяце</span><strong id="studentPaidMonth">0 ₽</strong><small id="studentPaidMonthCount">0 оплат</small></article>
+    <article id="studentPaymentCard"><span>Следующая оплата</span><strong id="studentNextPayment">—</strong><small id="studentPaymentState">Дата не указана</small></article>
+    <article><span>Следующее занятие</span><strong id="studentNextLesson">—</strong><small id="studentNextLessonMeta">Не запланировано</small></article>
+  </div>
+
+  <div id="studentNextAction" class="student-next-action" hidden></div>
+
+  <div id="studentContactCard" class="student-contact-card" hidden>
+    <div>
+      <span>Контакт родителя</span>
+      <strong id="studentContactValue">—</strong>
+      <small id="studentContactType">Контакт не указан</small>
+    </div>
+    <div id="studentContactActions" class="student-contact-actions"></div>
+  </div>
+
+  <div id="studentRhythm" class="student-rhythm" hidden>
+    <div class="student-rhythm-head">
+      <div><span>Учебный ритм</span><strong id="studentRhythmTitle">0 занятий</strong></div>
+      <small id="studentRhythmMeta"></small>
+    </div>
+    <div class="student-rhythm-track"><i id="studentRhythmFill"></i></div>
+    <div class="student-rhythm-stats">
+      <div><b id="studentDoneLessons">0</b><span>проведено в месяце</span></div>
+      <div><b id="studentUpcomingLessons">0</b><span>впереди</span></div>
+      <div><b id="studentLastLesson">—</b><span>последнее занятие</span></div>
+    </div>
+  </div>
+
   <div class="card student-form">
     <label>Ученик<input id="sStudentName"></label><label>Родитель<input id="sParentName"></label>
     <div class="two"><label>Класс<input id="sGrade"></label><label>Преподаватель<select id="sTeacher"><option></option><option>Егор</option><option>Миша</option><option>Иван</option><option>Никита</option></select></label></div>
@@ -208,17 +766,177 @@
       <button id="deleteStudent" class="danger-button" type="button">Удалить ученика</button>
     </div>
   </div>
-  <div class="card"><div class="actions"><button id="studentAddPayment">+ Оплата</button><button id="studentAddLesson">+ Занятие</button></div></div>
+  <div class="card student-quick-actions">
+    <h3>Быстрые действия</h3>
+    <div class="actions">
+      <button id="studentAddPayment">+ Оплата</button>
+      <button id="studentAddLesson">+ Занятие</button>
+      <button id="studentAddTask">+ Задача</button>
+      <button id="studentQuickContact">Связаться</button>
+    </div>
+  </div>
   <div class="card"><h3>Оплаты</h3><div id="studentPayments" class="compact-list"></div></div>
   <div class="card"><h3>Занятия</h3><div id="studentLessons" class="compact-list"></div></div>
+</aside></div>
+
+<!-- Карточка группы -->
+<div id="groupDrawer" class="drawer group-drawer"><div class="shade"></div><aside>
+  <div class="drawer-top"><em>Групповое занятие</em><button id="groupClose">×</button></div>
+
+  <div class="group-drawer-head">
+    <div id="groupAvatar" class="group-avatar">Г</div>
+    <div>
+      <div id="groupBadges" class="group-badges"></div>
+      <h2 id="groupDrawerTitle">Новая группа</h2>
+      <p id="groupDrawerMeta">Состав, преподаватель и расписание</p>
+    </div>
+  </div>
+
+  <div id="groupSnapshot" class="group-snapshot" hidden>
+    <article><span>Участники</span><strong id="groupMemberCount">0 / 6</strong><small id="groupFreeText">6 свободных мест</small></article>
+    <article><span>Преподаватель</span><strong id="groupTeacherText">—</strong><small id="groupTeacherLoadText">не назначен</small></article>
+    <article><span>Класс</span><strong id="groupGradeText">—</strong><small id="groupProgramText">программа не указана</small></article>
+    <article><span>Следующее занятие</span><strong id="groupNextText">—</strong><small id="groupNextMeta">расписание не задано</small></article>
+  </div>
+
+  <div class="card group-form">
+    <h3>Основное</h3>
+    <label>Название<input id="groupName" placeholder="Например, 7 класс · Алгебра"></label>
+    <div class="two">
+      <label>Класс<input id="groupGrade" placeholder="7"></label>
+      <label>Программа<input id="groupProgram" placeholder="Школьная математика"></label>
+    </div>
+    <div class="two">
+      <label>Преподаватель<select id="groupTeacher"><option>Не назначен</option><option>Егор</option><option>Миша</option><option>Иван</option><option>Никита</option></select></label>
+      <label>Вместимость<input id="groupCapacity" type="number" min="1" max="30" value="6"></label>
+    </div>
+    <label>Статус<select id="groupStatus"><option>Набор</option><option>Активна</option><option>Пауза</option><option>Архив</option></select></label>
+    <label>Заметки<textarea id="groupNotes" rows="3" placeholder="Особенности группы, уровень, комментарии…"></textarea></label>
+  </div>
+
+  <div id="groupInitialSchedule" class="card">
+    <h3>Первое занятие в расписании</h3>
+    <div class="two">
+      <label>День недели<select id="groupInitialWeekday"><option value="1">Понедельник</option><option value="2">Вторник</option><option value="3">Среда</option><option value="4">Четверг</option><option value="5">Пятница</option><option value="6">Суббота</option><option value="7">Воскресенье</option></select></label>
+      <label>Время<input id="groupInitialTime" type="time" value="18:00"></label>
+    </div>
+    <label>Длительность, мин<input id="groupInitialDuration" type="number" min="30" max="240" value="60"></label>
+  </div>
+
+  <button id="groupSave" class="save">Сохранить группу</button>
+
+  <div id="groupExistingBlocks" hidden>
+    <div class="card">
+      <div class="panel-head"><div><em>Расписание</em><h3>Регулярные занятия</h3></div><span id="groupSlotsCount" class="panel-caption"></span></div>
+      <div id="groupSlotsList" class="group-slots-list"></div>
+      <div class="group-add-slot">
+        <select id="groupSlotWeekday"><option value="1">Пн</option><option value="2">Вт</option><option value="3">Ср</option><option value="4">Чт</option><option value="5">Пт</option><option value="6">Сб</option><option value="7">Вс</option></select>
+        <input id="groupSlotTime" type="time" value="18:00">
+        <input id="groupSlotDuration" type="number" min="30" max="240" value="60" title="Длительность, мин">
+        <button id="groupAddSlot" type="button">+ Время</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="panel-head"><div><em>Состав</em><h3>Дети в группе</h3></div><span id="groupMembersCaption" class="panel-caption"></span></div>
+      <div id="groupMembersList" class="group-members-list"></div>
+      <div class="group-add-member">
+        <select id="groupMemberStudent"></select>
+        <button id="groupAddMember" type="button">+ Добавить ребёнка</button>
+      </div>
+    </div>
+
+    <div class="card group-attendance-card">
+      <div class="panel-head">
+        <div><em>Посещаемость</em><h3>Отметить занятие</h3></div>
+        <span id="groupAttendanceMonthRate" class="panel-caption">—</span>
+      </div>
+
+      <div class="group-attendance-summary">
+        <div><span>Были</span><strong id="groupAttPresent">0</strong></div>
+        <div><span>Опоздали</span><strong id="groupAttLate">0</strong></div>
+        <div><span>Уваж.</span><strong id="groupAttExcused">0</strong></div>
+        <div><span>Не были</span><strong id="groupAttAbsent">0</strong></div>
+      </div>
+
+      <div class="group-attendance-session">
+        <label>Занятие<select id="groupAttendanceSession"></select></label>
+        <button id="groupAttendanceAllPresent" type="button">Все присутствовали</button>
+      </div>
+
+      <div id="groupAttendanceList" class="group-attendance-list"></div>
+
+      <div class="group-attendance-actions">
+        <small id="groupAttendanceHint">Выберите занятие и отметьте детей.</small>
+        <button id="groupAttendanceSave" type="button">Сохранить посещаемость</button>
+      </div>
+    </div>
+  </div>
+</aside></div>
+
+<!-- Карточка преподавателя -->
+<div id="teacherDrawer" class="drawer teacher-drawer"><div class="shade"></div><aside>
+  <div class="drawer-top"><em>Карточка преподавателя</em><button id="teacherClose">×</button></div>
+
+  <div class="teacher-profile-head">
+    <div id="teacherProfileAvatar" class="teacher-profile-avatar">П</div>
+    <div>
+      <div id="teacherProfileBadges" class="teacher-profile-badges"></div>
+      <h2 id="teacherProfileName">Преподаватель</h2>
+      <p id="teacherProfileMeta">Нагрузка и расписание</p>
+    </div>
+  </div>
+
+  <div class="teacher-profile-metrics">
+    <article><span>Ученики</span><strong id="teacherProfileStudents">0</strong><small>активных</small></article>
+    <article><span>Свободно</span><strong id="teacherProfileFree">0</strong><small>по ёмкости</small></article>
+    <article><span>7 дней</span><strong id="teacherProfileWeek">0</strong><small>событий</small></article>
+    <article><span>Пробные</span><strong id="teacherProfileTrials">0</strong><small>впереди</small></article>
+  </div>
+
+  <div class="teacher-load-card">
+    <div class="teacher-load-card-head">
+      <div><span>Текущая нагрузка</span><strong id="teacherLoadText">0 / 0</strong></div>
+      <b id="teacherLoadPercent">0%</b>
+    </div>
+    <div class="teacher-load-track"><i id="teacherLoadFill"></i></div>
+    <small id="teacherLoadHint">Есть свободная ёмкость</small>
+  </div>
+
+  <div id="teacherNextEvent" class="teacher-next-event"></div>
+
+  <div class="card teacher-profile-actions">
+    <h3>Быстрые действия</h3>
+    <div class="actions">
+      <button id="teacherAddLesson">+ Занятие</button>
+      <button id="teacherOpenCalendar">Календарь</button>
+      <button id="teacherContactBtn">Telegram</button>
+      <button id="teacherOpenSettings">Настройки</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="panel-head"><div><em>Расписание</em><h3>Ближайшие события</h3></div><span id="teacherScheduleCount" class="panel-caption"></span></div>
+    <div id="teacherSchedule" class="compact-list"></div>
+  </div>
+
+  <div class="card">
+    <div class="panel-head"><div><em>Ученики</em><h3>Текущие ученики</h3></div><span id="teacherStudentsCount" class="panel-caption"></span></div>
+    <div id="teacherStudentsList" class="compact-list"></div>
+  </div>
+
+  <div id="teacherCandidatesCard" class="card">
+    <div class="panel-head"><div><em>Распределение</em><h3>Можно назначить</h3></div><span id="teacherCandidatesCount" class="panel-caption"></span></div>
+    <div id="teacherCandidates" class="compact-list"></div>
+  </div>
 </aside></div>
 
 <!-- Универсальные модальные окна -->
 <div id="modalShade" class="modal-shade" hidden></div>
 <div id="taskModal" class="modal" hidden><div class="modal-top"><h3>Новая задача</h3><button data-modal-close>×</button></div><label>Что сделать<input id="taskTitle" placeholder="Перезвонить родителю"></label><label>Когда<input id="taskDue" type="datetime-local"></label><label>Тип<select id="taskType"><option>Перезвонить</option><option>Написать</option><option>Проверить оплату</option><option>Подготовить пробный</option><option>Другое</option></select></label><button id="taskSave" class="save">Создать задачу</button></div>
 <div id="paymentModal" class="modal" hidden><div class="modal-top"><h3>Добавить оплату</h3><button data-modal-close>×</button></div><label>Ученик<select id="paymentStudent"></select></label><div class="two"><label>Сумма, ₽<input id="paymentAmount" type="number" min="1"></label><label>Дата оплаты<input id="paymentAt" type="datetime-local"></label></div><label>Способ<select id="paymentMethod"><option>Перевод</option><option>СБП</option><option>Карта</option><option>Наличные</option><option>Другое</option></select></label><label>Следующая оплата<input id="paymentNext" type="datetime-local"></label><label>Комментарий<input id="paymentComment"></label><button id="paymentSave" class="save">Сохранить оплату</button></div>
-<div id="lessonModal" class="modal" hidden><div class="modal-top"><h3>Новое занятие</h3><button data-modal-close>×</button></div><label>Ученик<select id="lessonStudent"></select></label><div class="two"><label>Преподаватель<select id="lessonTeacher"><option></option><option>Егор</option><option>Миша</option><option>Иван</option><option>Никита</option></select></label><label>Дата и время<input id="lessonAt" type="datetime-local"></label></div><div class="two"><label>Длительность, мин<input id="lessonDuration" type="number" value="60" min="15" max="240"></label><label>Тип<select id="lessonType"><option>Занятие</option><option>Пробный</option><option>Консультация</option></select></label></div><label>Комментарий<input id="lessonComment"></label><button id="lessonSave" class="save">Добавить в календарь</button></div>
+<div id="lessonModal" class="modal lesson-modal-pro" hidden><div class="modal-top"><h3>Новое занятие</h3><button data-modal-close>×</button></div><label>Ученик<select id="lessonStudent"></select></label><div class="two"><label>Преподаватель<select id="lessonTeacher"><option></option><option>Егор</option><option>Миша</option><option>Иван</option><option>Никита</option></select></label><label>Дата и время<input id="lessonAt" type="datetime-local"></label></div><div class="two"><label>Длительность, мин<input id="lessonDuration" type="number" value="60" min="15" max="240"></label><label>Тип<select id="lessonType"><option>Занятие</option><option>Пробный</option><option>Консультация</option></select></label></div><div id="lessonConflictWarning" class="lesson-conflict-warning" hidden></div><label>Комментарий<input id="lessonComment"></label><button id="lessonSave" class="save">Добавить в календарь</button></div>
 
-<script src="app.js?v=pro4"></script>
+<script src="app.js?v=master12"></script>
 </body>
 </html>

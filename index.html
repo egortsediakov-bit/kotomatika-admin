@@ -9,7 +9,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="assets/icon-192.png">
   <link rel="apple-touch-icon" href="assets/icon-192.png">
-  <link rel="stylesheet" href="styles.css?v=master12">
+  <link rel="stylesheet" href="styles.css?v=master13">
 </head>
 <body>
 <div id="authOverlay" class="auth-overlay">
@@ -123,6 +123,7 @@
       <div class="head">
         <div><em>Продажи</em><h1>Заявки</h1></div>
         <div class="head-actions">
+          <button id="newLeadBtn" class="primary-btn">+ Заявка</button>
           <div class="lead-view-toggle">
             <button id="leadKanbanMode" class="active" type="button">Kanban</button>
             <button id="leadTableMode" type="button">Таблица</button>
@@ -935,8 +936,37 @@
 <div id="modalShade" class="modal-shade" hidden></div>
 <div id="taskModal" class="modal" hidden><div class="modal-top"><h3>Новая задача</h3><button data-modal-close>×</button></div><label>Что сделать<input id="taskTitle" placeholder="Перезвонить родителю"></label><label>Когда<input id="taskDue" type="datetime-local"></label><label>Тип<select id="taskType"><option>Перезвонить</option><option>Написать</option><option>Проверить оплату</option><option>Подготовить пробный</option><option>Другое</option></select></label><button id="taskSave" class="save">Создать задачу</button></div>
 <div id="paymentModal" class="modal" hidden><div class="modal-top"><h3>Добавить оплату</h3><button data-modal-close>×</button></div><label>Ученик<select id="paymentStudent"></select></label><div class="two"><label>Сумма, ₽<input id="paymentAmount" type="number" min="1"></label><label>Дата оплаты<input id="paymentAt" type="datetime-local"></label></div><label>Способ<select id="paymentMethod"><option>Перевод</option><option>СБП</option><option>Карта</option><option>Наличные</option><option>Другое</option></select></label><label>Следующая оплата<input id="paymentNext" type="datetime-local"></label><label>Комментарий<input id="paymentComment"></label><button id="paymentSave" class="save">Сохранить оплату</button></div>
+<div id="leadCreateModal" class="modal lead-create-modal" hidden>
+  <div class="modal-top"><h3>Новая заявка</h3><button data-modal-close>×</button></div>
+  <p class="modal-help">Добавьте обращение вручную — например, если клиент написал лично или позвонил.</p>
+  <div class="two">
+    <label>Родитель<input id="newLeadParent" placeholder="Имя родителя"></label>
+    <label>Ученик<input id="newLeadStudent" placeholder="Имя ученика"></label>
+  </div>
+  <div class="two">
+    <label>Класс<input id="newLeadGrade" placeholder="7"></label>
+    <label>Контакт *<input id="newLeadContact" placeholder="+79990000000 или @telegram"></label>
+  </div>
+  <label>Цель / программа<input id="newLeadGoal" placeholder="Школьная математика, ОГЭ, олимпиада…"></label>
+  <div class="two">
+    <label>Источник<select id="newLeadSource">
+      <option>Ручная заявка</option><option>Телефон</option><option>Telegram</option><option>Рекомендация</option><option>VK</option><option>Другое</option>
+    </select></label>
+    <label>Статус<select id="newLeadStatus">
+      <option>Новая</option><option>Связались</option><option>Пробный</option><option>Пробный проведён</option><option>Записан</option><option>Оплатил</option><option>Не отвечает</option><option>Отложено</option>
+    </select></label>
+  </div>
+  <div class="two">
+    <label>Преподаватель<select id="newLeadTeacher"><option>Не назначен</option><option>Егор</option><option>Миша</option><option>Иван</option><option>Никита</option></select></label>
+    <label>Пробный урок<input id="newLeadTrial" type="datetime-local"></label>
+  </div>
+  <label>Комментарий клиента<textarea id="newLeadClientComment" rows="2" placeholder="Что написал или сказал клиент"></textarea></label>
+  <label>Заметка менеджера<textarea id="newLeadManagerNote" rows="2" placeholder="Внутренняя заметка"></textarea></label>
+  <button id="newLeadSave" class="save">Создать заявку</button>
+</div>
+
 <div id="lessonModal" class="modal lesson-modal-pro" hidden><div class="modal-top"><h3>Новое занятие</h3><button data-modal-close>×</button></div><label>Ученик<select id="lessonStudent"></select></label><div class="two"><label>Преподаватель<select id="lessonTeacher"><option></option><option>Егор</option><option>Миша</option><option>Иван</option><option>Никита</option></select></label><label>Дата и время<input id="lessonAt" type="datetime-local"></label></div><div class="two"><label>Длительность, мин<input id="lessonDuration" type="number" value="60" min="15" max="240"></label><label>Тип<select id="lessonType"><option>Занятие</option><option>Пробный</option><option>Консультация</option></select></label></div><div id="lessonConflictWarning" class="lesson-conflict-warning" hidden></div><label>Комментарий<input id="lessonComment"></label><button id="lessonSave" class="save">Добавить в календарь</button></div>
 
-<script src="app.js?v=master12"></script>
+<script src="app.js?v=master13"></script>
 </body>
 </html>

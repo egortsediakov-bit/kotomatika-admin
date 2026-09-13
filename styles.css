@@ -1970,3 +1970,21 @@ body.is-authenticated .auth-overlay{display:none}
   .group-attendance-actions{align-items:stretch;flex-direction:column}
   .group-attendance-actions button{width:100%}
 }
+
+
+/* ================= MASTER v13 — ручное добавление заявки ================= */
+.lead-create-modal{max-width:650px}
+.lead-create-modal .modal-help{
+  margin:-4px 0 12px;
+  color:#888;font-size:9px;line-height:1.45
+}
+.lead-create-modal textarea{
+  width:100%;resize:vertical;
+  border:1px solid var(--line);border-radius:10px;padding:10px;
+  font:inherit;font-size:9px;background:#fff
+}
+#page-leads .head-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+@media(max-width:620px){
+  #page-leads .head-actions{width:100%}
+  #newLeadBtn{width:100%}
+}

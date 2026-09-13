@@ -410,6 +410,63 @@ function taskItem(t){
   return `<div class="compact-item ${overdue?'danger':''}"><label class="task-check"><input type="checkbox" data-task-toggle="${esc(t.id)}" ${t.done?'checked':''}><span><b>${esc(t.title)}</b><small>${fmt(t.due_at)}</small></span></label>${t.lead_id?`<button data-open-lead="${esc(t.lead_id)}">Заявка</button>`:''}</div>`;
 }
 
+
+function resetLeadCreateForm(){
+  $('#newLeadParent').value='';
+  $('#newLeadStudent').value='';
+  $('#newLeadGrade').value='';
+  $('#newLeadContact').value='';
+  $('#newLeadGoal').value='';
+  $('#newLeadSource').value='Ручная заявка';
+  $('#newLeadStatus').value='Новая';
+  $('#newLeadTeacher').value='Не назначен';
+  $('#newLeadTrial').value='';
+  $('#newLeadClientComment').value='';
+  $('#newLeadManagerNote').value='';
+}
+function openLeadCreateModal(){
+  resetLeadCreateForm();
+  openModal('#leadCreateModal');
+  setTimeout(()=>$('#newLeadParent').focus(),100);
+}
+$('#newLeadBtn').addEventListener('click',openLeadCreateModal);
+
+$('#newLeadSave').addEventListener('click',async()=>{
+  const btn=$('#newLeadSave');
+  const parentName=$('#newLeadParent').value.trim();
+  const studentName=$('#newLeadStudent').value.trim();
+  const contact=$('#newLeadContact').value.trim();
+
+  if(!parentName&&!studentName){toast('Укажите родителя или ученика');return}
+  if(!contact){toast('Укажите контакт');return}
+
+  btn.disabled=true;
+  btn.textContent='Создаю…';
+  try{
+    const result=await api('createLead',{
+      parentName,
+      studentName,
+      grade:$('#newLeadGrade').value,
+      contact,
+      goal:$('#newLeadGoal').value,
+      source:$('#newLeadSource').value,
+      status:$('#newLeadStatus').value,
+      teacher:$('#newLeadTeacher').value,
+      trial:inputToDisplay($('#newLeadTrial').value),
+      clientComment:$('#newLeadClientComment').value,
+      managerNote:$('#newLeadManagerNote').value
+    });
+    closeModals();
+    await bootstrap();
+    toast('Заявка создана');
+    if(result.id)openLead(result.id);
+  }catch(e){showError(e.message)}
+  finally{
+    btn.disabled=false;
+    btn.textContent='Создать заявку';
+  }
+});
+
 const LEAD_KANBAN_COLUMNS=[
   {id:'new',title:'Новые',statuses:['Новая'],dropStatus:'Новая',tone:'new'},
   {id:'contacted',title:'Связались',statuses:['Связались'],dropStatus:'Связались',tone:'contacted'},
@@ -2923,7 +2980,7 @@ $('#authForm').addEventListener('submit',async e=>{
 });
 
 // PWA
-let promptEvt=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();promptEvt=e;$('#install').classList.add('show')});$('#installBtn').onclick=async()=>{if(!promptEvt)return;promptEvt.prompt();await promptEvt.userChoice;promptEvt=null;$('#install').classList.remove('show')};if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=master12').catch(()=>{}));
+let promptEvt=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();promptEvt=e;$('#install').classList.add('show')});$('#installBtn').onclick=async()=>{if(!promptEvt)return;promptEvt.prompt();await promptEvt.userChoice;promptEvt=null;$('#install').classList.remove('show')};if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=master13').catch(()=>{}));
 
 // Старт
 (async()=>{

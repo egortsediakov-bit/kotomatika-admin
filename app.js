@@ -203,6 +203,7 @@ function openLead(id){
   document.querySelector("#leadStatus").value=current.status;
   document.querySelector("#teacher").value=current.teacher || "Не назначен";
   document.querySelector("#trial").value=current.trial || "";
+  if(typeof closeTrialPicker==="function") closeTrialPicker();
   document.querySelector("#note").value=current.note || "";
   hist();
   drawer.classList.add("open");
@@ -227,6 +228,195 @@ document.querySelectorAll("[data-q]").forEach(b =>
     document.querySelector("#leadStatus").value=b.dataset.q;
   })
 );
+
+
+// ---------- Мини-календарь для даты пробного ----------
+const trialInput = document.querySelector("#trial");
+const trialPicker = document.querySelector("#trialPicker");
+const trialCalendarBtn = document.querySelector("#trialCalendarBtn");
+const calTitle = document.querySelector("#calTitle");
+const calDays = document.querySelector("#calDays");
+const calTime = document.querySelector("#calTime");
+
+let calView = { year: 0, month: 0 };
+let calSelected = null;
+
+function pad2(n){ return String(n).padStart(2,"0"); }
+
+function moscowTodayParts(){
+  const parts = new Intl.DateTimeFormat("en-CA",{
+    timeZone:MOSCOW_TZ,
+    year:"numeric",month:"2-digit",day:"2-digit"
+  }).formatToParts(new Date());
+  const x = Object.fromEntries(parts.map(p=>[p.type,p.value]));
+  return {year:Number(x.year),month:Number(x.month)-1,day:Number(x.day)};
+}
+
+function parseTrialValue(value){
+  const m = String(value||"").trim().match(/^(\d{2})\.(\d{2})\.(\d{4})\s+(\d{2}):(\d{2})$/);
+  if(!m) return null;
+  return {
+    year:Number(m[3]), month:Number(m[2])-1, day:Number(m[1]),
+    hour:Number(m[4]), minute:Number(m[5])
+  };
+}
+
+function formatTrialValue(v){
+  if(!v) return "";
+  return `${pad2(v.day)}.${pad2(v.month+1)}.${v.year} ${pad2(v.hour)}:${pad2(v.minute)}`;
+}
+
+function monthTitle(year,month){
+  const s = new Intl.DateTimeFormat("ru-RU",{month:"long",year:"numeric"})
+    .format(new Date(year,month,1));
+  return s.charAt(0).toUpperCase()+s.slice(1);
+}
+
+function sameDay(a,b){
+  return !!a && !!b && a.year===b.year && a.month===b.month && a.day===b.day;
+}
+
+function renderCalendar(){
+  calTitle.textContent = monthTitle(calView.year,calView.month);
+  calDays.innerHTML = "";
+
+  const today = moscowTodayParts();
+  const first = new Date(calView.year,calView.month,1);
+  const firstWeekday = (first.getDay()+6)%7; // Пн=0
+  const daysInMonth = new Date(calView.year,calView.month+1,0).getDate();
+  const prevDays = new Date(calView.year,calView.month,0).getDate();
+
+  for(let i=0;i<42;i++){
+    const cell = document.createElement("button");
+    cell.type="button";
+    cell.className="cal-day";
+
+    let y=calView.year, m=calView.month, d;
+    if(i<firstWeekday){
+      d=prevDays-firstWeekday+i+1;
+      m--;
+      if(m<0){m=11;y--}
+      cell.classList.add("outside");
+    } else if(i>=firstWeekday+daysInMonth){
+      d=i-(firstWeekday+daysInMonth)+1;
+      m++;
+      if(m>11){m=0;y++}
+      cell.classList.add("outside");
+    } else {
+      d=i-firstWeekday+1;
+    }
+
+    const date={year:y,month:m,day:d};
+    cell.textContent=d;
+    cell.dataset.year=y;
+    cell.dataset.month=m;
+    cell.dataset.day=d;
+
+    if(sameDay(date,today)) cell.classList.add("today");
+    if(calSelected && sameDay(date,calSelected)) cell.classList.add("selected");
+
+    cell.addEventListener("click",()=>{
+      const currentTime = calTime.value || "18:00";
+      const [hh,mm]=currentTime.split(":").map(Number);
+
+      calSelected={
+        year:Number(cell.dataset.year),
+        month:Number(cell.dataset.month),
+        day:Number(cell.dataset.day),
+        hour:hh||0,
+        minute:mm||0
+      };
+
+      if(calSelected.month!==calView.month || calSelected.year!==calView.year){
+        calView={year:calSelected.year,month:calSelected.month};
+      }
+      renderCalendar();
+    });
+
+    calDays.appendChild(cell);
+  }
+}
+
+function openTrialPicker(){
+  const parsed = parseTrialValue(trialInput.value);
+  const today = moscowTodayParts();
+
+  if(parsed){
+    calSelected={...parsed};
+    calView={year:parsed.year,month:parsed.month};
+    calTime.value=`${pad2(parsed.hour)}:${pad2(parsed.minute)}`;
+  }else{
+    calSelected={...today,hour:18,minute:0};
+    calView={year:today.year,month:today.month};
+    calTime.value="18:00";
+  }
+
+  renderCalendar();
+  trialPicker.hidden=false;
+  trialInput.setAttribute("aria-expanded","true");
+  trialPicker.scrollIntoView({block:"nearest",behavior:"smooth"});
+}
+
+function closeTrialPicker(){
+  trialPicker.hidden=true;
+  trialInput.setAttribute("aria-expanded","false");
+}
+
+function setQuickDate(offsetDays){
+  const today=moscowTodayParts();
+  const d=new Date(today.year,today.month,today.day+offsetDays);
+  const [hh,mm]=(calTime.value||"18:00").split(":").map(Number);
+  calSelected={
+    year:d.getFullYear(),month:d.getMonth(),day:d.getDate(),
+    hour:hh||0,minute:mm||0
+  };
+  calView={year:calSelected.year,month:calSelected.month};
+  renderCalendar();
+}
+
+trialInput.addEventListener("click",openTrialPicker);
+trialCalendarBtn.addEventListener("click",openTrialPicker);
+
+document.querySelector("#calPrev").addEventListener("click",()=>{
+  const d=new Date(calView.year,calView.month-1,1);
+  calView={year:d.getFullYear(),month:d.getMonth()};
+  renderCalendar();
+});
+
+document.querySelector("#calNext").addEventListener("click",()=>{
+  const d=new Date(calView.year,calView.month+1,1);
+  calView={year:d.getFullYear(),month:d.getMonth()};
+  renderCalendar();
+});
+
+document.querySelector("#calToday").addEventListener("click",()=>setQuickDate(0));
+document.querySelector("#calTomorrow").addEventListener("click",()=>setQuickDate(1));
+
+document.querySelector("#calClear").addEventListener("click",()=>{
+  trialInput.value="";
+  calSelected=null;
+  closeTrialPicker();
+});
+
+document.querySelector("#calApply").addEventListener("click",()=>{
+  if(!calSelected) return;
+  const [hh,mm]=(calTime.value||"18:00").split(":").map(Number);
+  calSelected.hour=hh||0;
+  calSelected.minute=mm||0;
+  trialInput.value=formatTrialValue(calSelected);
+  closeTrialPicker();
+});
+
+calTime.addEventListener("change",()=>{
+  if(!calSelected) return;
+  const [hh,mm]=(calTime.value||"18:00").split(":").map(Number);
+  calSelected.hour=hh||0;
+  calSelected.minute=mm||0;
+});
+
+document.addEventListener("keydown",e=>{
+  if(e.key==="Escape" && !trialPicker.hidden) closeTrialPicker();
+});
 
 document.querySelector("#save").addEventListener("click", async ()=>{
   if(!current) return;
@@ -347,7 +537,7 @@ document.querySelector("#installBtn").addEventListener("click",async()=>{
 });
 
 if("serviceWorker" in navigator){
-  window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js?v=live1"));
+  window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js?v=live2"));
 }
 
 showPage(["leads","students","stats","settings"].includes(location.hash.slice(1))?location.hash.slice(1):"leads");

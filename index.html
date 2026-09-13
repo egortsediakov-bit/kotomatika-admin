@@ -41,6 +41,41 @@
 
 <div id="drawer" class="drawer"><div class="shade"></div><aside><div class="drawer-top"><em>Карточка заявки</em><button id="close">×</button></div><h2 id="leadTitle"></h2><p id="leadMeta"></p><div class="card" id="details"></div>
 <div class="card"><h3>Быстрые действия</h3><div class="actions"><button data-q="Связались">Связались</button><button data-q="Пробный">На пробный</button><button data-q="Оплатил">Оплатил</button><button data-q="Отложено">Отложить</button></div></div>
-<div class="card"><h3>Обработка</h3><label>Статус<select id="leadStatus"><option>Новая</option><option>Связались</option><option>Пробный</option><option>Пробный проведён</option><option>Оплатил</option><option>Не отвечает</option><option>Отказ</option><option>Отложено</option></select></label><label>Преподаватель<select id="teacher"><option>Не назначен</option><option>Егор</option><option>Миша</option><option>Иван</option><option>Никита</option></select></label><label>Дата пробного<input id="trial" placeholder="15.09.2026 18:00"></label><label>Заметка<textarea id="note" rows="4"></textarea></label><button class="save" id="save">Сохранить изменения</button></div>
+<div class="card"><h3>Обработка</h3><label>Статус<select id="leadStatus"><option>Новая</option><option>Связались</option><option>Пробный</option><option>Пробный проведён</option><option>Оплатил</option><option>Не отвечает</option><option>Отказ</option><option>Отложено</option></select></label><label>Преподаватель<select id="teacher"><option>Не назначен</option><option>Егор</option><option>Миша</option><option>Иван</option><option>Никита</option></select></label><label class="trial-label">Дата пробного
+  <div class="trial-input-wrap">
+    <input id="trial" placeholder="Выберите дату и время" readonly aria-haspopup="dialog" aria-expanded="false">
+    <button id="trialCalendarBtn" class="trial-calendar-btn" type="button" aria-label="Открыть календарь">▦</button>
+  </div>
+
+  <div id="trialPicker" class="mini-calendar" hidden>
+    <div class="mini-calendar-top">
+      <button id="calPrev" type="button" aria-label="Предыдущий месяц">‹</button>
+      <strong id="calTitle"></strong>
+      <button id="calNext" type="button" aria-label="Следующий месяц">›</button>
+    </div>
+
+    <div class="mini-calendar-week">
+      <span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span>
+    </div>
+
+    <div id="calDays" class="mini-calendar-days"></div>
+
+    <div class="mini-calendar-time">
+      <div>
+        <span>Время</span>
+        <input id="calTime" type="time" value="18:00" step="300">
+      </div>
+      <div class="mini-calendar-quick">
+        <button id="calToday" type="button">Сегодня</button>
+        <button id="calTomorrow" type="button">Завтра</button>
+      </div>
+    </div>
+
+    <div class="mini-calendar-actions">
+      <button id="calClear" class="cal-clear" type="button">Очистить</button>
+      <button id="calApply" class="cal-apply" type="button">Выбрать</button>
+    </div>
+  </div>
+</label><label>Заметка<textarea id="note" rows="4"></textarea></label><button class="save" id="save">Сохранить изменения</button></div>
 <div class="card"><h3>История</h3><ul id="history"></ul></div></aside></div>
-<script src="app.js?v=live1"></script></body></html>
+<script src="app.js?v=live2"></script></body></html>

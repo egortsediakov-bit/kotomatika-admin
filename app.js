@@ -14,7 +14,9 @@ const E = {
   statusFilter:$('statusFilter'), gradeFilter:$('gradeFilter'),
   statTotal:$('statTotal'), statNew:$('statNew'), statToday:$('statToday'),
   statGrades:$('statGrades'), refreshBtn:$('refreshBtn'),
-  logoutBtn:$('logoutBtn'), lastUpdated:$('lastUpdated')
+  logoutBtn:$('logoutBtn'), lastUpdated:$('lastUpdated'),
+  pipeNew:$('pipeNew'), pipeContacted:$('pipeContacted'), pipeEnrolled:$('pipeEnrolled'),
+  pipePaid:$('pipePaid'), pipeRejected:$('pipeRejected'), visibleCount:$('visibleCount')
 };
 
 function show(el,msg){ el.textContent=msg; el.hidden=false; }
@@ -192,12 +194,19 @@ function list(){
 }
 
 function renderStatsOnly(){
+  const byStatus = status => allLeads.filter(x=>String(x.status||'')===status).length;
   E.statTotal.textContent=allLeads.length;
-  E.statNew.textContent=allLeads.filter(x=>String(x.status||'').toLowerCase()==='новая').length;
+  E.statNew.textContent=byStatus('Новая');
   E.statToday.textContent=allLeads.filter(x=>today(x.created_at)).length;
   E.statGrades.textContent=new Set(
     allLeads.map(x=>x.grade).filter(x=>x!==null&&x!==undefined)
   ).size;
+
+  if(E.pipeNew) E.pipeNew.textContent=byStatus('Новая');
+  if(E.pipeContacted) E.pipeContacted.textContent=byStatus('Связались');
+  if(E.pipeEnrolled) E.pipeEnrolled.textContent=byStatus('Записан');
+  if(E.pipePaid) E.pipePaid.textContent=byStatus('Оплатил');
+  if(E.pipeRejected) E.pipeRejected.textContent=byStatus('Не подходит');
 }
 
 function bindStatusSelects(){
@@ -209,6 +218,7 @@ function bindStatusSelects(){
 function render(){
   const rows=list();
   renderStatsOnly();
+  if(E.visibleCount) E.visibleCount.textContent=rows.length;
 
   E.leadsBody.innerHTML=rows.map(x=>`
     <tr>

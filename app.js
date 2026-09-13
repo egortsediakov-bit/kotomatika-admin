@@ -1,26 +1,210 @@
-
 const API_URL = "https://functions.yandexcloud.net/d4ebvaiffdtsos840t16";
 const MOSCOW_TZ = 'Europe/Moscow';
-let authHeader = '', allLeads = [];
+
+let sessionCredentials = null;
+let allLeads = [];
+
 const $ = id => document.getElementById(id);
 const E = {
-loginView:$('loginView'),appView:$('appView'),loginForm:$('loginForm'),username:$('username'),password:$('password'),loginError:$('loginError'),
-globalError:$('globalError'),loading:$('loading'),leadsBody:$('leadsBody'),emptyState:$('emptyState'),searchInput:$('searchInput'),
-statusFilter:$('statusFilter'),gradeFilter:$('gradeFilter'),statTotal:$('statTotal'),statNew:$('statNew'),statToday:$('statToday'),
-statGrades:$('statGrades'),refreshBtn:$('refreshBtn'),logoutBtn:$('logoutBtn'),lastUpdated:$('lastUpdated')
+  loginView:$('loginView'), appView:$('appView'), loginForm:$('loginForm'),
+  username:$('username'), password:$('password'), loginError:$('loginError'),
+  globalError:$('globalError'), loading:$('loading'), leadsBody:$('leadsBody'),
+  emptyState:$('emptyState'), searchInput:$('searchInput'),
+  statusFilter:$('statusFilter'), gradeFilter:$('gradeFilter'),
+  statTotal:$('statTotal'), statNew:$('statNew'), statToday:$('statToday'),
+  statGrades:$('statGrades'), refreshBtn:$('refreshBtn'),
+  logoutBtn:$('logoutBtn'), lastUpdated:$('lastUpdated')
 };
-function b64utf8(v){const bytes=new TextEncoder().encode(v);let s='';for(const b of bytes)s+=String.fromCharCode(b);return btoa(s)}
-function show(el,msg){el.textContent=msg;el.hidden=false} function hide(el){el.hidden=true;el.textContent=''}
-function esc(v){return String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;')}
-function fmt(iso){if(!iso)return'—';const d=new Date(iso);if(Number.isNaN(d.getTime()))return String(iso);return new Intl.DateTimeFormat('ru-RU',{timeZone:MOSCOW_TZ,day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}).format(d)}
-function today(iso){if(!iso)return false;const f=new Intl.DateTimeFormat('en-CA',{timeZone:MOSCOW_TZ,year:'numeric',month:'2-digit',day:'2-digit'});return f.format(new Date(iso))===f.format(new Date())}
-function contact(v){const c=String(v||'').trim();if(!c)return'—';if(c.startsWith('@'))return `<a class="contact-link" href="https://t.me/${encodeURIComponent(c.slice(1))}" target="_blank" rel="noopener">${esc(c)}</a>`;if(/^\+7\d{10}$/.test(c))return `<a class="contact-link" href="tel:${c}">${esc(c)}</a>`;return esc(c)}
-function sclass(s){s=String(s||'').toLowerCase();if(s==='новая'||s==='new')return'new';if(['оплатил','записан','связались'].some(v=>s.includes(v)))return'good';return''}
-async function load(login=false){hide(E.globalError);hide(E.loginError);E.loading.hidden=false;try{const r=await fetch(API_URL,{method:'GET',mode:'cors',cache:'no-store',headers:{Authorization:authHeader,Accept:'application/json'}});let d=null;try{d=await r.json()}catch{}if(r.status===401)throw new Error('Неверный логин или пароль.');if(!r.ok||!d?.ok)throw new Error(d?.error||`Ошибка API: ${r.status}`);allLeads=Array.isArray(d.leads)?d.leads:[];filters();render();E.lastUpdated.textContent='Обновлено '+new Intl.DateTimeFormat('ru-RU',{timeZone:MOSCOW_TZ,hour:'2-digit',minute:'2-digit'}).format(new Date());if(login){E.password.value='';E.loginView.hidden=true;E.appView.hidden=false}}catch(e){login?show(E.loginError,e.message):show(E.globalError,e.message);if(login)authHeader=''}finally{E.loading.hidden=true}}
-function filters(){let ss=[...new Set(allLeads.map(x=>String(x.status||'').trim()).filter(Boolean))].sort(),cs=E.statusFilter.value;E.statusFilter.innerHTML='<option value="">Все статусы</option>'+ss.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');E.statusFilter.value=ss.includes(cs)?cs:'';let gs=[...new Set(allLeads.map(x=>String(x.grade??'').trim()).filter(Boolean))].sort((a,b)=>Number(a)-Number(b)),cg=E.gradeFilter.value;E.gradeFilter.innerHTML='<option value="">Все классы</option>'+gs.map(g=>`<option value="${esc(g)}">${esc(g)} класс</option>`).join('');E.gradeFilter.value=gs.includes(cg)?cg:''}
-function list(){const q=E.searchInput.value.trim().toLowerCase(),s=E.statusFilter.value,g=E.gradeFilter.value;return allLeads.filter(x=>(!s||String(x.status||'')===s)&&(!g||String(x.grade??'')===g)&&(!q||[x.parent_name,x.student_name,x.contact,x.goal,x.client_comment,x.status,x.grade].join(' ').toLowerCase().includes(q)))}
-function render(){const rows=list();E.statTotal.textContent=allLeads.length;E.statNew.textContent=allLeads.filter(x=>String(x.status||'').toLowerCase()==='новая').length;E.statToday.textContent=allLeads.filter(x=>today(x.created_at)).length;E.statGrades.textContent=new Set(allLeads.map(x=>x.grade).filter(x=>x!==null&&x!==undefined)).size;E.leadsBody.innerHTML=rows.map(x=>`<tr><td>${esc(fmt(x.created_at))}</td><td class="person"><strong>${esc(x.parent_name||'—')}</strong><span>${esc(x.student_name||'—')}</span></td><td><span class="grade">${esc(x.grade??'—')}</span></td><td>${esc(x.goal||'—')}</td><td>${contact(x.contact)}</td><td><span class="badge ${sclass(x.status)}">${esc(x.status||'—')}</span></td><td class="comment">${esc(x.client_comment||'—')}</td></tr>`).join('');E.emptyState.hidden=rows.length!==0}
-E.loginForm.addEventListener('submit',async e=>{e.preventDefault();authHeader='Basic '+b64utf8(`${E.username.value.trim()}:${E.password.value}`);await load(true)});
-E.refreshBtn.addEventListener('click',()=>load());E.logoutBtn.addEventListener('click',()=>{authHeader='';allLeads=[];E.appView.hidden=true;E.loginView.hidden=false;E.password.value='';hide(E.globalError);hide(E.loginError)});
-[E.searchInput,E.statusFilter,E.gradeFilter].forEach(el=>{el.addEventListener('input',render);el.addEventListener('change',render)});
-if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+
+function show(el,msg){ el.textContent=msg; el.hidden=false; }
+function hide(el){ el.hidden=true; el.textContent=''; }
+
+function esc(v){
+  return String(v ?? '')
+    .replaceAll('&','&amp;')
+    .replaceAll('<','&lt;')
+    .replaceAll('>','&gt;')
+    .replaceAll('"','&quot;')
+    .replaceAll("'",'&#039;');
+}
+
+function fmt(iso){
+  if(!iso) return '—';
+  const d=new Date(iso);
+  if(Number.isNaN(d.getTime())) return String(iso);
+  return new Intl.DateTimeFormat('ru-RU',{
+    timeZone:MOSCOW_TZ, day:'2-digit', month:'2-digit', year:'numeric',
+    hour:'2-digit', minute:'2-digit'
+  }).format(d);
+}
+
+function today(iso){
+  if(!iso) return false;
+  const f=new Intl.DateTimeFormat('en-CA',{
+    timeZone:MOSCOW_TZ, year:'numeric', month:'2-digit', day:'2-digit'
+  });
+  return f.format(new Date(iso))===f.format(new Date());
+}
+
+function contact(v){
+  const c=String(v||'').trim();
+  if(!c) return '—';
+  if(c.startsWith('@')){
+    return `<a class="contact-link" href="https://t.me/${encodeURIComponent(c.slice(1))}" target="_blank" rel="noopener">${esc(c)}</a>`;
+  }
+  if(/^\+7\d{10}$/.test(c)){
+    return `<a class="contact-link" href="tel:${c}">${esc(c)}</a>`;
+  }
+  return esc(c);
+}
+
+function sclass(s){
+  s=String(s||'').toLowerCase();
+  if(s==='новая'||s==='new') return 'new';
+  if(['оплатил','записан','связались'].some(v=>s.includes(v))) return 'good';
+  return '';
+}
+
+async function apiRequest(credentials){
+  return fetch(API_URL,{
+    method:'POST',
+    mode:'cors',
+    cache:'no-store',
+    headers:{
+      'Content-Type':'application/json',
+      'Accept':'application/json'
+    },
+    body:JSON.stringify({
+      username: credentials.username,
+      password: credentials.password
+    })
+  });
+}
+
+async function load(login=false){
+  hide(E.globalError);
+  hide(E.loginError);
+
+  if(!sessionCredentials){
+    if(!login) return;
+  }
+
+  E.loading.hidden=false;
+
+  try{
+    const r=await apiRequest(sessionCredentials);
+    let d=null;
+    try{ d=await r.json(); }catch{}
+
+    if(r.status===401) throw new Error('Неверный логин или пароль.');
+    if(!r.ok || !d?.ok) throw new Error(d?.error || `Ошибка API: ${r.status}`);
+
+    allLeads=Array.isArray(d.leads)?d.leads:[];
+    filters();
+    render();
+
+    E.lastUpdated.textContent='Обновлено '+new Intl.DateTimeFormat('ru-RU',{
+      timeZone:MOSCOW_TZ,hour:'2-digit',minute:'2-digit'
+    }).format(new Date());
+
+    if(login){
+      // Password remains only in JS memory for Refresh; never stored in browser storage.
+      E.password.value='';
+      E.loginView.hidden=true;
+      E.appView.hidden=false;
+    }
+  }catch(e){
+    login ? show(E.loginError,e.message) : show(E.globalError,e.message);
+    if(login) sessionCredentials=null;
+  }finally{
+    E.loading.hidden=true;
+  }
+}
+
+function filters(){
+  const ss=[...new Set(allLeads.map(x=>String(x.status||'').trim()).filter(Boolean))].sort();
+  const cs=E.statusFilter.value;
+  E.statusFilter.innerHTML='<option value="">Все статусы</option>'+
+    ss.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');
+  E.statusFilter.value=ss.includes(cs)?cs:'';
+
+  const gs=[...new Set(allLeads.map(x=>String(x.grade??'').trim()).filter(Boolean))]
+    .sort((a,b)=>Number(a)-Number(b));
+  const cg=E.gradeFilter.value;
+  E.gradeFilter.innerHTML='<option value="">Все классы</option>'+
+    gs.map(g=>`<option value="${esc(g)}">${esc(g)} класс</option>`).join('');
+  E.gradeFilter.value=gs.includes(cg)?cg:'';
+}
+
+function list(){
+  const q=E.searchInput.value.trim().toLowerCase();
+  const s=E.statusFilter.value;
+  const g=E.gradeFilter.value;
+
+  return allLeads.filter(x =>
+    (!s || String(x.status||'')===s) &&
+    (!g || String(x.grade??'')===g) &&
+    (!q || [
+      x.parent_name,x.student_name,x.contact,x.goal,
+      x.client_comment,x.status,x.grade
+    ].join(' ').toLowerCase().includes(q))
+  );
+}
+
+function render(){
+  const rows=list();
+
+  E.statTotal.textContent=allLeads.length;
+  E.statNew.textContent=allLeads.filter(x=>String(x.status||'').toLowerCase()==='новая').length;
+  E.statToday.textContent=allLeads.filter(x=>today(x.created_at)).length;
+  E.statGrades.textContent=new Set(
+    allLeads.map(x=>x.grade).filter(x=>x!==null&&x!==undefined)
+  ).size;
+
+  E.leadsBody.innerHTML=rows.map(x=>`
+    <tr>
+      <td>${esc(fmt(x.created_at))}</td>
+      <td class="person"><strong>${esc(x.parent_name||'—')}</strong><span>${esc(x.student_name||'—')}</span></td>
+      <td><span class="grade">${esc(x.grade??'—')}</span></td>
+      <td>${esc(x.goal||'—')}</td>
+      <td>${contact(x.contact)}</td>
+      <td><span class="badge ${sclass(x.status)}">${esc(x.status||'—')}</span></td>
+      <td class="comment">${esc(x.client_comment||'—')}</td>
+    </tr>
+  `).join('');
+
+  E.emptyState.hidden=rows.length!==0;
+}
+
+E.loginForm.addEventListener('submit', async e=>{
+  e.preventDefault();
+  const username=E.username.value.trim();
+  const password=E.password.value;
+  if(!username || !password) return;
+
+  sessionCredentials={username,password};
+  await load(true);
+});
+
+E.refreshBtn.addEventListener('click',()=>load(false));
+
+E.logoutBtn.addEventListener('click',()=>{
+  sessionCredentials=null;
+  allLeads=[];
+  E.appView.hidden=true;
+  E.loginView.hidden=false;
+  E.password.value='';
+  hide(E.globalError);
+  hide(E.loginError);
+});
+
+[E.searchInput,E.statusFilter,E.gradeFilter].forEach(el=>{
+  el.addEventListener('input',render);
+  el.addEventListener('change',render);
+});
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  });
+}

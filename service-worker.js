@@ -1,37 +1,9 @@
-const C='kotomatika-admin-live-exact-v8';
-const A=[
-  './',
-  './index.html',
-  './styles.css',
-  './app.js?v=live8',
-  './manifest.webmanifest',
-  './assets/icon-192.png',
-  './assets/icon-512.png'
-];
-
-self.addEventListener('install',e=>
-  e.waitUntil(caches.open(C).then(c=>c.addAll(A)).then(()=>self.skipWaiting()))
-);
-
-self.addEventListener('activate',e=>
-  e.waitUntil(
-    caches.keys()
-      .then(keys=>Promise.all(keys.filter(k=>k!==C).map(k=>caches.delete(k))))
-      .then(()=>self.clients.claim())
-  )
-);
-
+const C='kotomatika-crm-pro-v2';
+const A=['./','./index.html','./styles.css?v=pro2','./app.js?v=pro2','./manifest.webmanifest','./assets/icon-192.png','./assets/icon-512.png'];
+self.addEventListener('install',e=>e.waitUntil(caches.open(C).then(c=>c.addAll(A)).then(()=>self.skipWaiting())));
+self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==C).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
 self.addEventListener('fetch',e=>{
   const u=new URL(e.request.url);
-  if(u.hostname.includes('functions.yandexcloud.net') || e.request.method!=='GET') return;
-
-  e.respondWith(
-    fetch(e.request)
-      .then(r=>{
-        const cp=r.clone();
-        caches.open(C).then(c=>c.put(e.request,cp));
-        return r;
-      })
-      .catch(()=>caches.match(e.request))
-  );
+  if(u.hostname.includes('functions.yandexcloud.net')||e.request.method!=='GET') return;
+  e.respondWith(fetch(e.request).then(r=>{const cp=r.clone();caches.open(C).then(c=>c.put(e.request,cp));return r}).catch(()=>caches.match(e.request)));
 });

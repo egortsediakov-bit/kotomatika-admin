@@ -105,7 +105,12 @@ async function api(action, payload={}, useAuth=true){
     token=''; sessionStorage.removeItem(SESSION_KEY); document.body.classList.remove('is-authenticated');
     $('#authOverlay').style.display='grid';
   }
-  if(!r.ok || !d.ok){ setSync('Ошибка',false); throw new Error(d.error||`Ошибка API: ${r.status}`); }
+  if(!r.ok || !d.ok){
+    setSync('Ошибка',false);
+    const base=d.error||`Ошибка API: ${r.status}`;
+    const details=d.details?String(d.details).slice(0,700):'';
+    throw new Error(details?`${base}: ${details}`:base);
+  }
   setSync('Данные сохранены');
   return d;
 }
@@ -411,61 +416,138 @@ function taskItem(t){
 }
 
 
+const MANUAL_LEAD_PROGRAMS={
+  '1':'Школьная математика','2':'Школьная математика','3':'Школьная математика','4':'Школьная математика',
+  '5':'Школьная математика','6':'Школьная математика','7':'Школьная математика','8':'Школьная математика',
+  '9':'Подготовка к ОГЭ','10':'Подготовка к ЕГЭ','11':'Подготовка к ЕГЭ'
+};
+
+function manualLeadName(value,label){
+  const v=String(value||'').trim().replace(/\s+/g,' ');
+  if(v.length<2)return {error:`${label}: минимум 2 символа`};
+  if(v.length>80)return {error:`${label}: максимум 80 символов`};
+  if(!/^[A-Za-zА-Яа-яЁё][A-Za-zА-Яа-яЁё\\s'’\\-]*$/.test(v))return {error:`${label}: используйте только буквы, пробел, дефис или апостроф`};
+  return {value:v};
+}
+function normalizeManualLeadContact(value){
+  const raw=String(value||'').trim();
+  if(!raw)return {error:'Укажите телефон или Telegram'};
+
+  if(raw.startsWith('@')){
+    if(!/^@[A-Za-z0-9_]{5,32}$/.test(raw))return {error:'Telegram: укажите @username (5–32 символа: латиница, цифры, _)'}; 
+    return {value:raw,type:'telegram'};
+  }
+
+  const digits=raw.replace(/\\D/g,'');
+  let normalized='';
+  if(digits.length===11 && digits[0]==='8') normalized='+7'+digits.slice(1);
+  else if(digits.length===11 && digits[0]==='7') normalized='+7'+digits.slice(1);
+  else return {error:'Телефон: введите российский номер с +7 или 8, например +7 999 123-45-67'};
+
+  if(!/^\\+7\\d{10}$/.test(normalized))return {error:'Проверьте номер телефона'};
+  return {value:normalized,type:'phone'};
+}
+function setLeadFormError(message=''){
+  const box=$('#newLeadFormError');
+  if(!box)return;
+  box.hidden=!message;
+  box.textContent=message;
+  if(message)box.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function suggestManualLeadProgram(force=false){
+  const grade=$('#newLeadGrade').value;
+  const goal=$('#newLeadGoal');
+  const suggested=MANUAL_LEAD_PROGRAMS[grade]||'';
+  if(!suggested)return;
+  if(force||!goal.value||goal.dataset.auto==='1'){
+    goal.value=suggested;
+    goal.dataset.auto='1';
+  }
+  $('#newLeadProgramHint').textContent=`Рекомендация для ${grade} класса: ${suggested}. При необходимости можно изменить вручную.`;
+}
 function resetLeadCreateForm(){
   $('#newLeadParent').value='';
   $('#newLeadStudent').value='';
   $('#newLeadGrade').value='';
   $('#newLeadContact').value='';
   $('#newLeadGoal').value='';
+  $('#newLeadGoal').dataset.auto='1';
   $('#newLeadSource').value='Ручная заявка';
   $('#newLeadStatus').value='Новая';
   $('#newLeadTeacher').value='Не назначен';
   $('#newLeadTrial').value='';
   $('#newLeadClientComment').value='';
   $('#newLeadManagerNote').value='';
+  $('#newLeadProgramHint').textContent='После выбора класса программа подставится автоматически.';
+  setLeadFormError('');
 }
 function openLeadCreateModal(){
   resetLeadCreateForm();
   openModal('#leadCreateModal');
   setTimeout(()=>$('#newLeadParent').focus(),100);
 }
+function validateManualLeadForm(){
+  const parent=manualLeadName($('#newLeadParent').value,'Ваше имя');
+  if(parent.error)return {error:parent.error};
+  const student=manualLeadName($('#newLeadStudent').value,'Имя ученика');
+  if(student.error)return {error:student.error};
+
+  const grade=$('#newLeadGrade').value;
+  if(!/^(?:[1-9]|1[01])$/.test(grade))return {error:'Выберите класс от 1 до 11'};
+
+  const goal=$('#newLeadGoal').value;
+  if(!goal)return {error:'Выберите программу'};
+
+  const contact=normalizeManualLeadContact($('#newLeadContact').value);
+  if(contact.error)return {error:contact.error};
+
+  return {parentName:parent.value,studentName:student.value,grade,goal,contact:contact.value};
+}
+
 $('#newLeadBtn').addEventListener('click',openLeadCreateModal);
+$('#newLeadCancel').addEventListener('click',closeModals);
+$('#newLeadGrade').addEventListener('change',()=>suggestManualLeadProgram(true));
+$('#newLeadGoal').addEventListener('change',()=>{$('#newLeadGoal').dataset.auto='0'});
+$('#newLeadContact').addEventListener('blur',()=>{
+  const c=normalizeManualLeadContact($('#newLeadContact').value);
+  if(c.value)$('#newLeadContact').value=c.value;
+});
 
 $('#newLeadSave').addEventListener('click',async()=>{
   const btn=$('#newLeadSave');
-  const parentName=$('#newLeadParent').value.trim();
-  const studentName=$('#newLeadStudent').value.trim();
-  const contact=$('#newLeadContact').value.trim();
+  const valid=validateManualLeadForm();
+  if(valid.error){setLeadFormError(valid.error);return}
 
-  if(!parentName&&!studentName){toast('Укажите родителя или ученика');return}
-  if(!contact){toast('Укажите контакт');return}
-
+  setLeadFormError('');
   btn.disabled=true;
   btn.textContent='Создаю…';
   try{
     const result=await api('createLead',{
-      parentName,
-      studentName,
-      grade:$('#newLeadGrade').value,
-      contact,
-      goal:$('#newLeadGoal').value,
+      parentName:valid.parentName,
+      studentName:valid.studentName,
+      grade:valid.grade,
+      contact:valid.contact,
+      goal:valid.goal,
       source:$('#newLeadSource').value,
       status:$('#newLeadStatus').value,
       teacher:$('#newLeadTeacher').value,
       trial:inputToDisplay($('#newLeadTrial').value),
-      clientComment:$('#newLeadClientComment').value,
-      managerNote:$('#newLeadManagerNote').value
+      clientComment:$('#newLeadClientComment').value.trim(),
+      managerNote:$('#newLeadManagerNote').value.trim()
     });
     closeModals();
     await bootstrap();
     toast('Заявка создана');
     if(result.id)openLead(result.id);
-  }catch(e){showError(e.message)}
-  finally{
+  }catch(e){
+    setLeadFormError(e.message);
+    showError(e.message);
+  }finally{
     btn.disabled=false;
     btn.textContent='Создать заявку';
   }
 });
+
 
 const LEAD_KANBAN_COLUMNS=[
   {id:'new',title:'Новые',statuses:['Новая'],dropStatus:'Новая',tone:'new'},
@@ -2818,17 +2900,42 @@ $('#logoutCurrent').onclick=async()=>{
 
 // ---------- Модальные окна, задачи, оплаты, занятия ----------
 function openModal(id){
-  $('#modalShade').hidden=false;
+  closeModals();
+  const shade=$('#modalShade');
   const modal=$(id);
-  if(modal)modal.hidden=false;
+  if(shade){
+    shade.hidden=false;
+    shade.style.display='block';
+    shade.style.pointerEvents='auto';
+  }
+  if(modal){
+    modal.hidden=false;
+    modal.style.display='block';
+  }
+  document.body.classList.add('modal-open');
 }
 function closeModals(){
-  $$('.modal').forEach(x=>x.hidden=true);
+  $$('.modal').forEach(x=>{
+    x.hidden=true;
+    x.style.display='none';
+  });
   const shade=$('#modalShade');
-  if(shade)shade.hidden=true;
+  if(shade){
+    shade.hidden=true;
+    shade.style.display='none';
+    shade.style.pointerEvents='none';
+  }
+  document.body.classList.remove('modal-open');
 }
-$$('[data-modal-close]').forEach(b=>b.onclick=closeModals);
-$('#modalShade').onclick=closeModals;
+document.addEventListener('click',e=>{
+  const close=e.target.closest('[data-modal-close]');
+  if(close){
+    e.preventDefault();
+    e.stopPropagation();
+    closeModals();
+  }
+});
+$('#modalShade').addEventListener('click',e=>{e.preventDefault();closeModals()});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModals()});
 function openTaskModal(ctx={}){taskContext={leadId:ctx.leadId||'',studentId:ctx.studentId||''};$('#taskTitle').value='';$('#taskDue').value=nowInput(0,null,0);$('#taskType').value='Перезвонить';openModal('#taskModal')}
 $('#newTaskToday').onclick=()=>openTaskModal();
@@ -2995,7 +3102,7 @@ $('#authForm').addEventListener('submit',async e=>{
 });
 
 // PWA
-let promptEvt=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();promptEvt=e;$('#install').classList.add('show')});$('#installBtn').onclick=async()=>{if(!promptEvt)return;promptEvt.prompt();await promptEvt.userChoice;promptEvt=null;$('#install').classList.remove('show')};if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=master14').catch(()=>{}));
+let promptEvt=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();promptEvt=e;$('#install').classList.add('show')});$('#installBtn').onclick=async()=>{if(!promptEvt)return;promptEvt.prompt();await promptEvt.userChoice;promptEvt=null;$('#install').classList.remove('show')};if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=master15').catch(()=>{}));
 
 // Старт
 (async()=>{

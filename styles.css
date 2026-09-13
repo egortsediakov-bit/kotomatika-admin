@@ -1988,3 +1988,27 @@ body.is-authenticated .auth-overlay{display:none}
   #page-leads .head-actions{width:100%}
   #newLeadBtn{width:100%}
 }
+
+
+/* ================= MASTER v15 — форма заявки как на сайте ================= */
+body.modal-open{overflow:hidden}
+.lead-create-modal{max-width:690px}
+.lead-create-modal .field-hint{
+  display:block;margin-top:2px;color:#999;font-size:8px;font-weight:600;line-height:1.4
+}
+.lead-form-error{
+  margin:0 0 12px;padding:10px 12px;border-radius:11px;
+  background:#fff0eb;border:1px solid #ffcabc;color:#a63a20;
+  font-size:9px;font-weight:850;line-height:1.4
+}
+.lead-form-error[hidden]{display:none}
+.lead-create-actions{
+  display:grid;grid-template-columns:140px 1fr;gap:8px;margin-top:8px
+}
+.lead-create-actions .save{margin:0}
+.lead-create-actions .soft-btn{min-height:44px}
+.lead-create-modal select:invalid,.lead-create-modal input:invalid{box-shadow:none}
+@media(max-width:620px){
+  .lead-create-actions{grid-template-columns:1fr}
+  .lead-create-actions .soft-btn{order:2}
+}

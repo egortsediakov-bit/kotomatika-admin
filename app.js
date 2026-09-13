@@ -1,5 +1,6 @@
 const API_URL = "https://functions.yandexcloud.net/d4ebvaiffdtsos840t16";
 const MOSCOW_TZ = 'Europe/Moscow';
+const STATUS_OPTIONS = ['Новая','Связались','Записан','Оплатил','Не подходит'];
 
 let sessionCredentials = null;
 let allLeads = [];
@@ -58,14 +59,18 @@ function contact(v){
   return esc(c);
 }
 
-function sclass(s){
-  s=String(s||'').toLowerCase();
-  if(s==='новая'||s==='new') return 'new';
-  if(['оплатил','записан','связались'].some(v=>s.includes(v))) return 'good';
-  return '';
+function statusSelect(lead){
+  const current = String(lead.status || 'Новая');
+  return `
+    <select class="status-select" data-lead-id="${esc(lead.id)}" data-original-status="${esc(current)}" aria-label="Статус заявки">
+      ${STATUS_OPTIONS.map(s => `<option value="${esc(s)}"${s===current?' selected':''}>${esc(s)}</option>`).join('')}
+    </select>
+  `;
 }
 
-async function apiRequest(credentials){
+async function apiRequest(payload){
+  if(!sessionCredentials) throw new Error('Сессия завершена. Войдите снова.');
+
   return fetch(API_URL,{
     method:'POST',
     mode:'cors',
@@ -75,8 +80,9 @@ async function apiRequest(credentials){
       'Accept':'application/json'
     },
     body:JSON.stringify({
-      username: credentials.username,
-      password: credentials.password
+      username: sessionCredentials.username,
+      password: sessionCredentials.password,
+      ...payload
     })
   });
 }
@@ -85,14 +91,12 @@ async function load(login=false){
   hide(E.globalError);
   hide(E.loginError);
 
-  if(!sessionCredentials){
-    if(!login) return;
-  }
+  if(!sessionCredentials) return;
 
   E.loading.hidden=false;
 
   try{
-    const r=await apiRequest(sessionCredentials);
+    const r=await apiRequest({action:'list'});
     let d=null;
     try{ d=await r.json(); }catch{}
 
@@ -108,7 +112,6 @@ async function load(login=false){
     }).format(new Date());
 
     if(login){
-      // Password remains only in JS memory for Refresh; never stored in browser storage.
       E.password.value='';
       E.loginView.hidden=true;
       E.appView.hidden=false;
@@ -121,12 +124,49 @@ async function load(login=false){
   }
 }
 
+async function updateStatus(select){
+  const id = select.dataset.leadId;
+  const previous = select.dataset.originalStatus || 'Новая';
+  const status = select.value;
+
+  if(status===previous) return;
+
+  hide(E.globalError);
+  select.disabled=true;
+
+  try{
+    const r=await apiRequest({action:'updateStatus', id, status});
+    let d=null;
+    try{ d=await r.json(); }catch{}
+
+    if(r.status===401) throw new Error('Сессия завершена. Войдите снова.');
+    if(!r.ok || !d?.ok) throw new Error(d?.error || `Ошибка API: ${r.status}`);
+
+    const lead = allLeads.find(x=>String(x.id)===String(id));
+    if(lead){
+      lead.status=status;
+      if(d.lead?.updated_at) lead.updated_at=d.lead.updated_at;
+    }
+
+    select.dataset.originalStatus=status;
+    select.classList.add('saved');
+    setTimeout(()=>select.classList.remove('saved'),900);
+
+    filters();
+    renderStatsOnly();
+  }catch(e){
+    select.value=previous;
+    show(E.globalError,'Не удалось сохранить статус: '+e.message);
+  }finally{
+    select.disabled=false;
+  }
+}
+
 function filters(){
-  const ss=[...new Set(allLeads.map(x=>String(x.status||'').trim()).filter(Boolean))].sort();
-  const cs=E.statusFilter.value;
+  const currentStatus=E.statusFilter.value;
   E.statusFilter.innerHTML='<option value="">Все статусы</option>'+
-    ss.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');
-  E.statusFilter.value=ss.includes(cs)?cs:'';
+    STATUS_OPTIONS.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');
+  E.statusFilter.value=STATUS_OPTIONS.includes(currentStatus)?currentStatus:'';
 
   const gs=[...new Set(allLeads.map(x=>String(x.grade??'').trim()).filter(Boolean))]
     .sort((a,b)=>Number(a)-Number(b));
@@ -151,15 +191,24 @@ function list(){
   );
 }
 
-function render(){
-  const rows=list();
-
+function renderStatsOnly(){
   E.statTotal.textContent=allLeads.length;
   E.statNew.textContent=allLeads.filter(x=>String(x.status||'').toLowerCase()==='новая').length;
   E.statToday.textContent=allLeads.filter(x=>today(x.created_at)).length;
   E.statGrades.textContent=new Set(
     allLeads.map(x=>x.grade).filter(x=>x!==null&&x!==undefined)
   ).size;
+}
+
+function bindStatusSelects(){
+  document.querySelectorAll('.status-select').forEach(select=>{
+    select.addEventListener('change',()=>updateStatus(select));
+  });
+}
+
+function render(){
+  const rows=list();
+  renderStatsOnly();
 
   E.leadsBody.innerHTML=rows.map(x=>`
     <tr>
@@ -168,12 +217,13 @@ function render(){
       <td><span class="grade">${esc(x.grade??'—')}</span></td>
       <td>${esc(x.goal||'—')}</td>
       <td>${contact(x.contact)}</td>
-      <td><span class="badge ${sclass(x.status)}">${esc(x.status||'—')}</span></td>
+      <td>${statusSelect(x)}</td>
       <td class="comment">${esc(x.client_comment||'—')}</td>
     </tr>
   `).join('');
 
   E.emptyState.hidden=rows.length!==0;
+  bindStatusSelects();
 }
 
 E.loginForm.addEventListener('submit', async e=>{

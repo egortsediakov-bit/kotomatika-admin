@@ -1,0 +1,17 @@
+
+/* KOTOMATIKA Admin v4 — editable status */
+.status-select{
+  min-width:132px;
+  padding:7px 30px 7px 10px;
+  border:1px solid #ffd8c8;
+  border-radius:999px;
+  background:#fff4ee;
+  color:#b43f0a;
+  font-size:12px;
+  font-weight:800;
+  outline:none;
+  transition:.18s ease;
+}
+.status-select:focus{border-color:#f45b16;box-shadow:0 0 0 3px rgba(244,91,22,.10)}
+.status-select:disabled{opacity:.55;cursor:wait}
+.status-select.saved{border-color:#68b58a;background:#edf9f2;color:#17643c}

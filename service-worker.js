@@ -1,9 +1,9 @@
-const C='kotomatika-admin-live-exact-v2';
+const C='kotomatika-admin-live-exact-v8';
 const A=[
   './',
   './index.html',
   './styles.css',
-  './app.js?v=live2',
+  './app.js?v=live8',
   './manifest.webmanifest',
   './assets/icon-192.png',
   './assets/icon-512.png'

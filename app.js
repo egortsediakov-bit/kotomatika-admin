@@ -268,7 +268,8 @@ function formatTrialValue(v){
 
 function monthTitle(year,month){
   const s = new Intl.DateTimeFormat("ru-RU",{month:"long",year:"numeric"})
-    .format(new Date(year,month,1));
+    .format(new Date(year,month,1))
+    .replace(/\s?г\.?$/,"");
   return s.charAt(0).toUpperCase()+s.slice(1);
 }
 

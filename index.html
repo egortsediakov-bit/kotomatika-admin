@@ -1,213 +1,46 @@
-<!doctype html>
-<html lang="ru">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#f45b16">
-  <meta name="robots" content="noindex,nofollow,noarchive">
-  <title>КОТОМАТИКА Admin</title>
-  <link rel="manifest" href="./manifest.webmanifest">
-  <link rel="stylesheet" href="./styles.css?v=1">
-  <link rel="stylesheet" href="./styles-demo-v5.css?v=5">
-</head>
-<body>
-  <div id="loginView" class="login-view">
-    <div class="login-shell">
-      <div class="login-brand-panel">
-        <div class="demo-logo big">К</div>
-        <div class="login-brand-copy">
-          <div class="eyebrow">КОТОМАТИКА</div>
-          <h1>Admin</h1>
-          <p>Управление заявками, учениками и воронкой школы.</p>
-        </div>
-        <div class="login-mini-card">
-          <span class="dot"></span>
-          <div>
-            <strong>CRM подключена</strong>
-            <small>Yandex Cloud + YDB</small>
-          </div>
-        </div>
-      </div>
-
-      <div class="login-form-panel">
-        <div class="login-form-wrap">
-          <div class="mobile-brand">
-            <div class="demo-logo">К</div>
-            <strong>КОТОМАТИКА</strong>
-          </div>
-          <div class="eyebrow">ЗАЩИЩЁННЫЙ ВХОД</div>
-          <h2>Добро пожаловать</h2>
-          <p class="muted">Войдите, чтобы открыть панель администратора.</p>
-
-          <form id="loginForm">
-            <label>
-              <span>Логин</span>
-              <input id="username" value="admin" autocomplete="username" required>
-            </label>
-            <label>
-              <span>Пароль</span>
-              <input id="password" type="password" autocomplete="current-password" required>
-            </label>
-            <button class="btn primary login-submit" type="submit">Войти в CRM</button>
-            <div id="loginError" class="error" hidden></div>
-          </form>
-
-          <p class="security-note">Пароль не сохраняется в браузере и используется только для защищённого запроса к API.</p>
-        </div>
-      </div>
-    </div>
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#ff5a1f"><title>КОТОМАТИКА Admin</title><link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="assets/icon-192.png"><link rel="apple-touch-icon" href="assets/icon-192.png"><link rel="stylesheet" href="styles.css"></head><body>
+<div id="authOverlay" class="auth-overlay">
+  <div class="auth-card">
+    <div class="auth-logo">K</div>
+    <div class="auth-eyebrow">КОТОМАТИКА Admin</div>
+    <h2>Вход</h2>
+    <p>Введите данные администратора.</p>
+    <form id="authForm">
+      <label>Логин<input id="authUser" value="admin" autocomplete="username" required></label>
+      <label>Пароль<input id="authPassword" type="password" autocomplete="current-password" required></label>
+      <button class="auth-submit" type="submit">Войти</button>
+      <div id="authError" class="auth-error" hidden></div>
+    </form>
   </div>
+</div>
 
-  <div id="appView" class="app demo-app" hidden>
-    <aside class="sidebar demo-sidebar">
-      <a class="logo demo-side-logo" href="#" aria-label="КОТОМАТИКА Admin">
-        <span class="logo-icon demo-logo">К</span>
-        <span>
-          <strong>КОТОМАТИКА</strong>
-          <small>Admin CRM</small>
-        </span>
-      </a>
+<header class="top"><div class="wrap"><div class="brand"><b>K</b><span>КОТОМАТИКА Admin</span><i>LIVE</i></div><div class="user">A&nbsp; Администратор</div></div></header>
+<div class="layout">
+<aside class="side"><small>РАБОТА</small><button data-page="leads" class="active">Заявки</button><button data-page="students">Ученики</button><small>АНАЛИТИКА</small><button data-page="stats">Статистика</button><small>СИСТЕМА</small><button data-page="settings">Настройки</button></aside>
+<main>
+<div id="install" class="install"><div><b>Установить КОТОМАТИКА Admin</b><p>Добавьте приложение на главный экран телефона.</p></div><button id="installBtn">Установить</button></div>
 
-      <div class="nav-caption">РАБОТА</div>
-      <nav class="demo-nav">
-        <button class="nav-item active" type="button">
-          <span class="nav-icon">▤</span>
-          <span>Заявки</span>
-          <span class="nav-dot"></span>
-        </button>
-        <button class="nav-item ghost-nav" type="button" disabled>
-          <span class="nav-icon">◉</span><span>Ученики</span><small>скоро</small>
-        </button>
-        <button class="nav-item ghost-nav" type="button" disabled>
-          <span class="nav-icon">◷</span><span>Расписание</span><small>скоро</small>
-        </button>
-        <button class="nav-item ghost-nav" type="button" disabled>
-          <span class="nav-icon">◇</span><span>Преподаватели</span><small>скоро</small>
-        </button>
-      </nav>
+<section class="page active" id="page-leads">
+<div class="head"><div><em>Рабочий стол</em><h1>Заявки</h1></div><p>Новые обращения и текущая воронка</p></div>
+<div class="metrics"><article><span>Новые</span><strong id="m-new">0</strong></article><article><span>Связались</span><strong id="m-contacted">0</strong></article><article><span>Пробный урок</span><strong id="m-trial">0</strong></article><article><span>Оплатили</span><strong id="m-paid">0</strong></article></div>
+<div class="tools"><input id="search" placeholder="Поиск по имени, телефону, Telegram…"><select id="status"><option value="">Все статусы</option><option>Новая</option><option>Связались</option><option>Пробный</option><option>Пробный проведён</option><option>Оплатил</option><option>Не отвечает</option><option>Отказ</option><option>Отложено</option></select></div>
+<div class="table"><div class="scroll"><table><thead><tr><th>Время</th><th>Родитель / ученик</th><th>Цель</th><th>Контакт</th><th>Преподаватель</th><th>Статус</th></tr></thead><tbody id="rows"></tbody></table></div></div>
+</section>
 
-      <div class="sidebar-spacer"></div>
+<section class="page" id="page-students"><div class="head"><div><em>База</em><h1>Ученики</h1></div><p>Карточки учеников</p></div><div id="students" class="student-grid"></div></section>
 
-      <div class="sidebar-card">
-        <div class="sidebar-card-icon">✓</div>
-        <div>
-          <strong>Система работает</strong>
-          <small>Данные в YDB</small>
-        </div>
-      </div>
+<section class="page" id="page-stats"><div class="head"><div><em>Аналитика</em><h1>Статистика</h1></div><p>Первая версия воронки</p></div>
+<div class="metrics"><article><span>Заявка → пробный</span><strong id="conv1">0%</strong></article><article><span>Пробный → оплата</span><strong id="conv2">0%</strong></article><article><span>Среднее время ответа</span><strong>12 мин</strong></article><article><span>Заявок сегодня</span><strong>4</strong></article></div>
+<div class="chart"><h3>Воронка</h3><div id="bars"></div></div></section>
 
-      <div class="sidebar-bottom">
-        <span class="secure-dot"></span>
-        <span>Защищённый вход</span>
-      </div>
-    </aside>
+<section class="page" id="page-settings"><div class="head"><div><em>Система</em><h1>Настройки</h1></div><p>Прототип — подключения пока выключены</p></div>
+<div class="settings"><article><h3>Преподаватели</h3><p>Егор, Миша, Иван, Никита.</p></article><article><h3>Статусы</h3><p>Новая → Связались → Пробный → Оплатил.</p></article><article><h3>Yandex Cloud</h3><p>Следующий этап: API Gateway + Functions + YDB.</p></article><article><h3>Безопасность</h3><p>Следующий этап: закрытый вход.</p></article></div></section>
+</main></div>
 
-    <main class="main demo-main">
-      <header class="topbar demo-topbar">
-        <div>
-          <div class="eyebrow">CRM / ЗАЯВКИ</div>
-          <h2>Заявки</h2>
-          <p class="page-subtitle">Все обращения с kotomatika.ru в одном месте.</p>
-        </div>
+<nav class="mobile"><button data-page="leads" class="active">📥<span>Заявки</span></button><button data-page="students">👨‍🎓<span>Ученики</span></button><button data-page="stats">📊<span>Статистика</span></button><button data-page="settings">⚙️<span>Настройки</span></button></nav>
 
-        <div class="top-actions">
-          <span id="lastUpdated" class="last-updated"></span>
-          <button id="refreshBtn" class="btn secondary icon-btn" type="button">↻ <span>Обновить</span></button>
-          <button id="logoutBtn" class="btn ghost icon-btn" type="button">Выйти</button>
-        </div>
-      </header>
-
-      <section class="stats demo-stats" aria-label="Статистика">
-        <article class="stat-card stat-primary">
-          <div class="stat-head"><span>Всего заявок</span><span class="stat-icon">◎</span></div>
-          <strong id="statTotal">0</strong>
-          <small>за всё время</small>
-        </article>
-        <article class="stat-card">
-          <div class="stat-head"><span>Новые</span><span class="stat-icon orange">●</span></div>
-          <strong id="statNew">0</strong>
-          <small>требуют внимания</small>
-        </article>
-        <article class="stat-card">
-          <div class="stat-head"><span>Сегодня</span><span class="stat-icon">↗</span></div>
-          <strong id="statToday">0</strong>
-          <small>новых обращений</small>
-        </article>
-        <article class="stat-card">
-          <div class="stat-head"><span>Классы</span><span class="stat-icon">#</span></div>
-          <strong id="statGrades">0</strong>
-          <small>в активных заявках</small>
-        </article>
-      </section>
-
-      <section class="pipeline-strip" aria-label="Воронка">
-        <div class="pipeline-head">
-          <div>
-            <div class="section-label">ВОРОНКА</div>
-            <strong>Статусы заявок</strong>
-          </div>
-          <span class="pipeline-note">обновляются автоматически</span>
-        </div>
-        <div class="pipeline-grid">
-          <div class="pipeline-item"><span class="pip-dot new"></span><b id="pipeNew">0</b><small>Новые</small></div>
-          <div class="pipeline-item"><span class="pip-dot contacted"></span><b id="pipeContacted">0</b><small>Связались</small></div>
-          <div class="pipeline-item"><span class="pip-dot enrolled"></span><b id="pipeEnrolled">0</b><small>Записаны</small></div>
-          <div class="pipeline-item"><span class="pip-dot paid"></span><b id="pipePaid">0</b><small>Оплатили</small></div>
-          <div class="pipeline-item"><span class="pip-dot rejected"></span><b id="pipeRejected">0</b><small>Не подходят</small></div>
-        </div>
-      </section>
-
-      <section class="content-card">
-        <div class="content-card-head">
-          <div>
-            <div class="section-label">БАЗА ЗАЯВОК</div>
-            <h3>Все обращения</h3>
-          </div>
-          <div class="results-count"><span id="visibleCount">0</span> записей</div>
-        </div>
-
-        <section class="toolbar demo-toolbar">
-          <label class="search">
-            <span class="search-ico">⌕</span>
-            <input id="searchInput" type="search" placeholder="Поиск по имени, ученику, телефону, Telegram или цели">
-          </label>
-          <select id="statusFilter" aria-label="Статус">
-            <option value="">Все статусы</option>
-          </select>
-          <select id="gradeFilter" aria-label="Класс">
-            <option value="">Все классы</option>
-          </select>
-        </section>
-
-        <div id="globalError" class="error banner" hidden></div>
-        <div id="loading" class="loading" hidden>Загружаю заявки…</div>
-
-        <section class="table-card demo-table-card">
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Дата</th>
-                  <th>Родитель / ученик</th>
-                  <th>Класс</th>
-                  <th>Цель</th>
-                  <th>Контакт</th>
-                  <th>Статус</th>
-                  <th>Комментарий</th>
-                </tr>
-              </thead>
-              <tbody id="leadsBody"></tbody>
-            </table>
-          </div>
-          <div id="emptyState" class="empty" hidden>
-            <strong>Заявок не найдено</strong>
-            <span>Попробуйте изменить фильтры или поисковый запрос.</span>
-          </div>
-        </section>
-      </section>
-    </main>
-  </div>
-
-  <script src="./app.js?v=5" defer></script>
-</body>
-</html>
+<div id="drawer" class="drawer"><div class="shade"></div><aside><div class="drawer-top"><em>Карточка заявки</em><button id="close">×</button></div><h2 id="leadTitle"></h2><p id="leadMeta"></p><div class="card" id="details"></div>
+<div class="card"><h3>Быстрые действия</h3><div class="actions"><button data-q="Связались">Связались</button><button data-q="Пробный">На пробный</button><button data-q="Оплатил">Оплатил</button><button data-q="Отложено">Отложить</button></div></div>
+<div class="card"><h3>Обработка</h3><label>Статус<select id="leadStatus"><option>Новая</option><option>Связались</option><option>Пробный</option><option>Пробный проведён</option><option>Оплатил</option><option>Не отвечает</option><option>Отказ</option><option>Отложено</option></select></label><label>Преподаватель<select id="teacher"><option>Не назначен</option><option>Егор</option><option>Миша</option><option>Иван</option><option>Никита</option></select></label><label>Дата пробного<input id="trial" placeholder="15.09.2026 18:00"></label><label>Заметка<textarea id="note" rows="4"></textarea></label><button class="save" id="save">Сохранить изменения</button></div>
+<div class="card"><h3>История</h3><ul id="history"></ul></div></aside></div>
+<script src="app.js?v=live1"></script></body></html>

@@ -84,7 +84,7 @@ function empty(text='Пока пусто'){return `<div class="empty-mini">${esc
 
 async function api(action, payload={}, useAuth=true){
   const headers={'Content-Type':'application/json','Accept':'application/json'};
-  if(useAuth && token) headers.Authorization=`Bearer ${token}`;
+  if(useAuth && token) headers['X-Kotomatika-Session']=token;
   setSync('Синхронизация…');
   let r;
   try{
@@ -413,7 +413,7 @@ $('#authForm').addEventListener('submit',async e=>{
 });
 
 // PWA
-let promptEvt=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();promptEvt=e;$('#install').classList.add('show')});$('#installBtn').onclick=async()=>{if(!promptEvt)return;promptEvt.prompt();await promptEvt.userChoice;promptEvt=null;$('#install').classList.remove('show')};if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=pro2').catch(()=>{}));
+let promptEvt=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();promptEvt=e;$('#install').classList.add('show')});$('#installBtn').onclick=async()=>{if(!promptEvt)return;promptEvt.prompt();await promptEvt.userChoice;promptEvt=null;$('#install').classList.remove('show')};if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=pro3').catch(()=>{}));
 
 // Старт
 (async()=>{

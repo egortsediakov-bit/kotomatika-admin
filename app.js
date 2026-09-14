@@ -1045,12 +1045,21 @@ $('#deleteLead').addEventListener('click',async()=>{
 
   try{
     await api('deleteLead',{id:leadId});
-    $('#drawer').classList.remove('open');
-    currentLead=null;
-    await bootstrap();
-    toast('Заявка удалена');
   }catch(e){
     showError(`Не удалось удалить заявку: ${e.message}`);
+    btn.disabled=false;
+    btn.textContent='Удалить заявку';
+    return;
+  }
+
+  $('#drawer').classList.remove('open');
+  currentLead=null;
+  toast('Заявка удалена');
+
+  try{
+    await bootstrap();
+  }catch(e){
+    showError(`Заявка удалена, но список не обновился автоматически: ${e.message}`);
   }finally{
     btn.disabled=false;
     btn.textContent='Удалить заявку';
@@ -3110,7 +3119,7 @@ $('#authForm').addEventListener('submit',async e=>{
 });
 
 // PWA
-let promptEvt=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();promptEvt=e;$('#install').classList.add('show')});$('#installBtn').onclick=async()=>{if(!promptEvt)return;promptEvt.prompt();await promptEvt.userChoice;promptEvt=null;$('#install').classList.remove('show')};if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=master16').catch(()=>{}));
+let promptEvt=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();promptEvt=e;$('#install').classList.add('show')});$('#installBtn').onclick=async()=>{if(!promptEvt)return;promptEvt.prompt();await promptEvt.userChoice;promptEvt=null;$('#install').classList.remove('show')};if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=master17').catch(()=>{}));
 
 // Старт
 (async()=>{

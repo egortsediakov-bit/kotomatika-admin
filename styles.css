@@ -2012,3 +2012,159 @@ body.modal-open{overflow:hidden}
   .lead-create-actions{grid-template-columns:1fr}
   .lead-create-actions .soft-btn{order:2}
 }
+
+
+/* ================= MASTER v18 — новая форма ручной заявки ================= */
+.lead-create-modal{
+  max-width:720px!important;
+  padding:0!important;
+  overflow:hidden!important;
+  border-radius:24px!important;
+  background:#f7f6f3!important;
+}
+.lead-create-hero{
+  position:relative;
+  display:grid;
+  grid-template-columns:52px minmax(0,1fr) 46px;
+  gap:13px;
+  align-items:center;
+  padding:20px 22px;
+  background:#111;
+  color:#fff;
+}
+.lead-create-brand{
+  width:52px;height:52px;border-radius:16px;
+  display:grid;place-items:center;
+  background:#ff5a1f;color:#fff;
+  font-size:20px;font-weight:950;
+}
+.lead-create-hero em{
+  display:block;
+  color:#ff8a57;
+  text-transform:uppercase;
+  letter-spacing:.12em;
+  font-size:8px;
+  font-style:normal;
+  font-weight:950;
+}
+.lead-create-hero h3{
+  margin:4px 0 3px!important;
+  font-size:21px!important;
+  color:#fff!important;
+}
+.lead-create-hero p{margin:0;color:#aaa;font-size:9px}
+.lead-create-close{
+  width:42px;height:42px;border:0;border-radius:13px;
+  background:#262626;color:#fff;font-size:22px;cursor:pointer;
+}
+.lead-create-modal>.lead-form-error,
+.lead-create-modal>.lead-form-section,
+.lead-create-modal>.lead-create-actions{
+  margin-left:18px;
+  margin-right:18px;
+}
+.lead-create-modal>.lead-form-error{margin-top:14px}
+
+.lead-form-section{
+  margin-top:13px;
+  padding:15px;
+  background:#fff;
+  border:1px solid #e7e5e0;
+  border-radius:17px;
+}
+.lead-form-section-title{
+  display:flex;align-items:center;gap:9px;margin-bottom:12px
+}
+.lead-form-section-title>span{
+  width:28px;height:28px;border-radius:9px;
+  display:grid;place-items:center;
+  background:#111;color:#fff;
+  font-size:9px;font-weight:950
+}
+.lead-form-section-title b{display:block;font-size:11px}
+.lead-form-section-title small{display:block;margin-top:1px;color:#999;font-size:8px}
+.lead-form-section label{
+  font-size:9px!important;
+  font-weight:900!important;
+  color:#555!important;
+}
+.lead-form-section input,
+.lead-form-section select,
+.lead-form-section textarea{
+  margin-top:5px!important;
+  background:#fbfbfa!important;
+  border:1px solid #deddd9!important;
+  border-radius:12px!important;
+  min-height:45px;
+  transition:border-color .15s ease,box-shadow .15s ease,background .15s ease;
+}
+.lead-form-section textarea{min-height:70px}
+.lead-form-section input:focus,
+.lead-form-section select:focus,
+.lead-form-section textarea:focus{
+  outline:none!important;
+  background:#fff!important;
+  border-color:#ff8b5d!important;
+  box-shadow:0 0 0 3px rgba(255,90,31,.09)!important;
+}
+.lead-form-section .field-hint{
+  margin:5px 2px 0!important;
+  color:#999!important;
+  font-size:7.5px!important;
+  line-height:1.45;
+}
+.lead-form-section .field-hint b{color:#555}
+
+.lead-program-preview{
+  margin-top:10px;
+  display:grid;
+  grid-template-columns:auto 1fr;
+  gap:2px 8px;
+  padding:10px 11px;
+  border:1px solid #ffd8c7;
+  background:#fff6f1;
+  border-radius:12px;
+}
+.lead-program-preview[hidden]{display:none}
+.lead-program-preview>span{
+  grid-row:1/3;
+  align-self:center;
+  border-radius:999px;
+  background:#ff5a1f;color:#fff;
+  padding:6px 8px;
+  font-size:7px;font-weight:950;text-transform:uppercase
+}
+.lead-program-preview strong{font-size:9px}
+.lead-program-preview small{color:#9b7565;font-size:7px}
+
+.lead-create-actions{
+  position:sticky;
+  bottom:0;
+  z-index:2;
+  display:grid!important;
+  grid-template-columns:140px 1fr!important;
+  gap:8px;
+  padding:14px 0 18px;
+  background:linear-gradient(to top,#f7f6f3 72%,rgba(247,246,243,0));
+}
+.lead-create-actions .soft-btn,
+.lead-create-actions .save{
+  min-height:48px!important;
+  border-radius:13px!important;
+  font-size:10px!important;
+}
+.lead-create-actions .save{
+  background:#ff5a1f!important;
+  box-shadow:0 8px 20px rgba(255,90,31,.18)
+}
+
+@media(max-width:650px){
+  .lead-create-hero{grid-template-columns:44px 1fr 40px;padding:16px}
+  .lead-create-brand{width:44px;height:44px;border-radius:13px}
+  .lead-create-hero h3{font-size:17px!important}
+  .lead-create-modal>.lead-form-section,
+  .lead-create-modal>.lead-form-error,
+  .lead-create-modal>.lead-create-actions{margin-left:10px;margin-right:10px}
+  .lead-form-section{padding:12px}
+  .lead-create-actions{grid-template-columns:1fr!important}
+}

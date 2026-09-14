@@ -457,13 +457,20 @@ function setLeadFormError(message=''){
 function suggestManualLeadProgram(force=false){
   const grade=$('#newLeadGrade').value;
   const goal=$('#newLeadGoal');
+  const preview=$('#newLeadProgramPreview');
+  const previewText=$('#newLeadProgramPreviewText');
   const suggested=MANUAL_LEAD_PROGRAMS[grade]||'';
-  if(!suggested)return;
+  if(!suggested){
+    preview.hidden=true;
+    return;
+  }
   if(force||!goal.value||goal.dataset.auto==='1'){
     goal.value=suggested;
     goal.dataset.auto='1';
   }
-  $('#newLeadProgramHint').textContent=`Рекомендация для ${grade} класса: ${suggested}. При необходимости можно изменить вручную.`;
+  preview.hidden=false;
+  previewText.textContent=suggested;
+  $('#newLeadProgramHint').textContent=`Для ${grade} класса автоматически выбрано: ${suggested}.`;
 }
 function resetLeadCreateForm(){
   $('#newLeadParent').value='';
@@ -478,7 +485,8 @@ function resetLeadCreateForm(){
   $('#newLeadTrial').value='';
   $('#newLeadClientComment').value='';
   $('#newLeadManagerNote').value='';
-  $('#newLeadProgramHint').textContent='После выбора класса программа подставится автоматически.';
+  $('#newLeadProgramHint').textContent='Выбери класс — программа подставится автоматически.';
+  $('#newLeadProgramPreview').hidden=true;
   setLeadFormError('');
 }
 function openLeadCreateModal(){
@@ -487,9 +495,9 @@ function openLeadCreateModal(){
   setTimeout(()=>$('#newLeadParent').focus(),100);
 }
 function validateManualLeadForm(){
-  const parent=manualLeadName($('#newLeadParent').value,'Ваше имя');
+  const parent=manualLeadName($('#newLeadParent').value,'ФИО родителя');
   if(parent.error)return {error:parent.error};
-  const student=manualLeadName($('#newLeadStudent').value,'Имя ученика');
+  const student=manualLeadName($('#newLeadStudent').value,'ФИО ученика');
   if(student.error)return {error:student.error};
 
   const grade=$('#newLeadGrade').value;
@@ -756,9 +764,9 @@ function leadPayload(l,changes={}){
 }
 async function updateLeadQuick(id,changes,successText='Заявка обновлена'){
   const l=STATE.leads.find(x=>String(x.id)===String(id));if(!l)return;
-  await api('updateLead',leadPayload(l,changes));
+  const result=await api('updateLead',leadPayload(l,changes));
   await bootstrap();
-  toast(successText);
+  toast(result.warnings?.length?`${successText} · история частично не записана`:successText);
 }
 async function applyBulkLeadChanges(){
   const ids=[...leadSelected];
@@ -1018,9 +1026,28 @@ $('#close').addEventListener('click',closeLeadDrawer);
 $('#drawer .shade').addEventListener('click',closeLeadDrawer);
 $$('[data-q]').forEach(b=>b.addEventListener('click',()=>{$('#leadStatus').value=b.dataset.q;if(currentLead){currentLead={...currentLead,status:b.dataset.q};renderLeadSmart();}}));
 $('#save').addEventListener('click',async()=>{
-  if(!currentLead)return; const btn=$('#save'); btn.disabled=true; btn.textContent='Сохраняем…';
-  try{await api('updateLead',{id:currentLead.id,status:$('#leadStatus').value,teacher:$('#teacher').value,trial:$('#trial').value,note:$('#note').value}); await bootstrap(); currentLead=STATE.leads.find(l=>String(l.id)===String(currentLead.id)); openLead(currentLead.id); toast('Заявка сохранена');}
-  catch(e){showError(e.message)} finally{btn.disabled=false;btn.textContent='Сохранить изменения'}
+  if(!currentLead)return;
+  const btn=$('#save');
+  btn.disabled=true;
+  btn.textContent='Сохраняем…';
+  try{
+    const result=await api('updateLead',{
+      id:currentLead.id,
+      status:$('#leadStatus').value,
+      teacher:$('#teacher').value,
+      trial:$('#trial').value,
+      note:$('#note').value
+    });
+    await bootstrap();
+    currentLead=STATE.leads.find(l=>String(l.id)===String(currentLead.id));
+    if(currentLead)openLead(currentLead.id);
+    toast(result.warnings?.length?'Заявка сохранена, история обновилась не полностью':'Заявка сохранена');
+  }catch(e){
+    showError(e.message);
+  }finally{
+    btn.disabled=false;
+    btn.textContent='Сохранить изменения';
+  }
 });
 $('#convertStudent').addEventListener('click',async()=>{
   if(!currentLead)return; try{await api('convertLeadToStudent',{id:currentLead.id}); await bootstrap(); const s=STATE.students.find(s=>String(s.source_lead_id)===String(currentLead.id)); if(s){$('#drawer').classList.remove('open');openStudent(s.id)} toast('Карточка ученика готова');}catch(e){showError(e.message)}
@@ -3119,7 +3146,7 @@ $('#authForm').addEventListener('submit',async e=>{
 });
 
 // PWA
-let promptEvt=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();promptEvt=e;$('#install').classList.add('show')});$('#installBtn').onclick=async()=>{if(!promptEvt)return;promptEvt.prompt();await promptEvt.userChoice;promptEvt=null;$('#install').classList.remove('show')};if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=master17').catch(()=>{}));
+let promptEvt=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();promptEvt=e;$('#install').classList.add('show')});$('#installBtn').onclick=async()=>{if(!promptEvt)return;promptEvt.prompt();await promptEvt.userChoice;promptEvt=null;$('#install').classList.remove('show')};if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=master18').catch(()=>{}));
 
 // Старт
 (async()=>{

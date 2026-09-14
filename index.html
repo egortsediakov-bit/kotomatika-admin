@@ -9,7 +9,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="assets/icon-192.png">
   <link rel="apple-touch-icon" href="assets/icon-192.png">
-  <link rel="stylesheet" href="styles.css?v=master17">
+  <link rel="stylesheet" href="styles.css?v=master18">
 </head>
 <body>
 <div id="authOverlay" class="auth-overlay">
@@ -937,71 +937,102 @@
 <div id="taskModal" class="modal" hidden><div class="modal-top"><h3>Новая задача</h3><button data-modal-close>×</button></div><label>Что сделать<input id="taskTitle" placeholder="Перезвонить родителю"></label><label>Когда<input id="taskDue" type="datetime-local"></label><label>Тип<select id="taskType"><option>Перезвонить</option><option>Написать</option><option>Проверить оплату</option><option>Подготовить пробный</option><option>Другое</option></select></label><button id="taskSave" class="save">Создать задачу</button></div>
 <div id="paymentModal" class="modal" hidden><div class="modal-top"><h3>Добавить оплату</h3><button data-modal-close>×</button></div><label>Ученик<select id="paymentStudent"></select></label><div class="two"><label>Сумма, ₽<input id="paymentAmount" type="number" min="1"></label><label>Дата оплаты<input id="paymentAt" type="datetime-local"></label></div><label>Способ<select id="paymentMethod"><option>Перевод</option><option>СБП</option><option>Карта</option><option>Наличные</option><option>Другое</option></select></label><label>Следующая оплата<input id="paymentNext" type="datetime-local"></label><label>Комментарий<input id="paymentComment"></label><button id="paymentSave" class="save">Сохранить оплату</button></div>
 <div id="leadCreateModal" class="modal lead-create-modal" hidden>
-  <div class="modal-top">
-    <h3>Новая заявка</h3>
-    <button type="button" data-modal-close aria-label="Закрыть">×</button>
+  <div class="lead-create-hero">
+    <div class="lead-create-brand">К</div>
+    <div>
+      <em>Продажи · новая заявка</em>
+      <h3>Добавить клиента вручную</h3>
+      <p>Для звонка, Telegram, рекомендации или обращения вне сайта.</p>
+    </div>
+    <button type="button" class="lead-create-close" data-modal-close aria-label="Закрыть">×</button>
   </div>
-  <p class="modal-help">Та же логика данных, что и в форме записи на сайте: имя, ученик, класс, программа и телефон / Telegram.</p>
 
   <div id="newLeadFormError" class="lead-form-error" hidden></div>
 
-  <div class="two">
-    <label>Ваше имя *<input id="newLeadParent" autocomplete="name" placeholder="Как к вам обращаться?"></label>
-    <label>Имя ученика *<input id="newLeadStudent" placeholder="Имя ученика"></label>
-  </div>
+  <section class="lead-form-section">
+    <div class="lead-form-section-title">
+      <span>1</span><div><b>Клиент</b><small>Кто обращается и как с ним связаться</small></div>
+    </div>
 
-  <div class="two">
-    <label>Класс *
-      <select id="newLeadGrade">
-        <option value="">Выберите класс</option>
-        <option value="1">1 класс</option><option value="2">2 класс</option><option value="3">3 класс</option>
-        <option value="4">4 класс</option><option value="5">5 класс</option><option value="6">6 класс</option>
-        <option value="7">7 класс</option><option value="8">8 класс</option><option value="9">9 класс</option>
-        <option value="10">10 класс</option><option value="11">11 класс</option>
-      </select>
-    </label>
-    <label>Программа *
-      <select id="newLeadGoal">
-        <option value="">Выберите программу</option>
-        <option value="Школьная математика">Школьная математика</option>
-        <option value="Олимпиадная математика">Олимпиадная математика</option>
-        <option value="Подготовка к ОГЭ">Подготовка к ОГЭ</option>
-        <option value="Подготовка к ЕГЭ">Подготовка к ЕГЭ</option>
-        <option value="Индивидуальные занятия">Индивидуальные занятия</option>
-      </select>
-      <small id="newLeadProgramHint" class="field-hint">После выбора класса программа подставится автоматически.</small>
-    </label>
-  </div>
+    <div class="two">
+      <label>ФИО родителя *
+        <input id="newLeadParent" autocomplete="name" placeholder="Иванов Иван Иванович">
+      </label>
+      <label>ФИО ученика *
+        <input id="newLeadStudent" placeholder="Иванов Пётр Иванович">
+      </label>
+    </div>
 
-  <label>Телефон / Telegram *
-    <input id="newLeadContact" inputmode="text" autocomplete="tel" placeholder="+7 999 123-45-67 / 8 999 123-45-67 / @username">
-    <small class="field-hint">Телефон: +7 или 8. Telegram: обязательно с @. Телефон сохраняется в формате +7XXXXXXXXXX.</small>
-  </label>
-
-  <div class="two">
-    <label>Источник
-      <select id="newLeadSource">
-        <option>Ручная заявка</option><option>Телефон</option><option>Telegram</option>
-        <option>Рекомендация</option><option>VK</option><option>Другое</option>
-      </select>
+    <label>Телефон / Telegram *
+      <input id="newLeadContact" inputmode="text" autocomplete="tel" placeholder="+79772928988 или @username">
+      <small class="field-hint">Можно слитно: <b>+79772928988</b>, через пробелы/дефисы, с 8, либо Telegram в формате @username.</small>
     </label>
-    <label>Статус
-      <select id="newLeadStatus">
-        <option>Новая</option><option>Связались</option><option>Пробный</option><option>Пробный проведён</option>
-        <option>Записан</option><option>Оплатил</option><option>Не отвечает</option><option>Отложено</option>
-      </select>
-    </label>
-  </div>
+  </section>
 
-  <div class="two">
-    <label>Преподаватель
-      <select id="newLeadTeacher"><option>Не назначен</option><option>Егор</option><option>Миша</option><option>Иван</option><option>Никита</option></select>
-    </label>
-    <label>Пробный урок<input id="newLeadTrial" type="datetime-local"></label>
-  </div>
+  <section class="lead-form-section">
+    <div class="lead-form-section-title">
+      <span>2</span><div><b>Обучение</b><small>Класс автоматически подскажет программу</small></div>
+    </div>
 
-  <label>Комментарий<textarea id="newLeadClientComment" rows="2" placeholder="Что написал или сказал клиент"></textarea></label>
-  <label>Заметка менеджера<textarea id="newLeadManagerNote" rows="2" placeholder="Внутренняя заметка"></textarea></label>
+    <div class="two">
+      <label>Класс *
+        <select id="newLeadGrade">
+          <option value="">Выберите класс</option>
+          <option value="1">1 класс</option><option value="2">2 класс</option><option value="3">3 класс</option>
+          <option value="4">4 класс</option><option value="5">5 класс</option><option value="6">6 класс</option>
+          <option value="7">7 класс</option><option value="8">8 класс</option><option value="9">9 класс</option>
+          <option value="10">10 класс</option><option value="11">11 класс</option>
+        </select>
+      </label>
+      <label>Программа *
+        <select id="newLeadGoal">
+          <option value="">Выберите программу</option>
+          <option value="Школьная математика">Школьная математика</option>
+          <option value="Олимпиадная математика">Олимпиадная математика</option>
+          <option value="Подготовка к ОГЭ">Подготовка к ОГЭ</option>
+          <option value="Подготовка к ЕГЭ">Подготовка к ЕГЭ</option>
+          <option value="Индивидуальные занятия">Индивидуальные занятия</option>
+        </select>
+        <small id="newLeadProgramHint" class="field-hint">Выбери класс — программа подставится автоматически.</small>
+      </label>
+    </div>
+
+    <div id="newLeadProgramPreview" class="lead-program-preview" hidden>
+      <span>Рекомендуем</span><strong id="newLeadProgramPreviewText">Школьная математика</strong>
+      <small>Можно изменить вручную в поле выше.</small>
+    </div>
+  </section>
+
+  <section class="lead-form-section">
+    <div class="lead-form-section-title">
+      <span>3</span><div><b>CRM</b><small>Куда поставить заявку в рабочем процессе</small></div>
+    </div>
+
+    <div class="two">
+      <label>Источник
+        <select id="newLeadSource">
+          <option>Ручная заявка</option><option>Телефон</option><option>Telegram</option>
+          <option>Рекомендация</option><option>VK</option><option>Другое</option>
+        </select>
+      </label>
+      <label>Статус
+        <select id="newLeadStatus">
+          <option>Новая</option><option>Связались</option><option>Пробный</option><option>Пробный проведён</option>
+          <option>Записан</option><option>Оплатил</option><option>Не отвечает</option><option>Отложено</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="two">
+      <label>Преподаватель
+        <select id="newLeadTeacher"><option>Не назначен</option><option>Егор</option><option>Миша</option><option>Иван</option><option>Никита</option></select>
+      </label>
+      <label>Пробный урок<input id="newLeadTrial" type="datetime-local"></label>
+    </div>
+
+    <label>Комментарий клиента<textarea id="newLeadClientComment" rows="2" placeholder="Что хочет клиент, уровень, пожелания…"></textarea></label>
+    <label>Внутренняя заметка<textarea id="newLeadManagerNote" rows="2" placeholder="Что важно не забыть менеджеру"></textarea></label>
+  </section>
 
   <div class="lead-create-actions">
     <button id="newLeadCancel" type="button" class="soft-btn">Отмена</button>
@@ -1011,6 +1042,6 @@
 
 <div id="lessonModal" class="modal lesson-modal-pro" hidden><div class="modal-top"><h3>Новое занятие</h3><button data-modal-close>×</button></div><label>Ученик<select id="lessonStudent"></select></label><div class="two"><label>Преподаватель<select id="lessonTeacher"><option></option><option>Егор</option><option>Миша</option><option>Иван</option><option>Никита</option></select></label><label>Дата и время<input id="lessonAt" type="datetime-local"></label></div><div class="two"><label>Длительность, мин<input id="lessonDuration" type="number" value="60" min="15" max="240"></label><label>Тип<select id="lessonType"><option>Занятие</option><option>Пробный</option><option>Консультация</option></select></label></div><div id="lessonConflictWarning" class="lesson-conflict-warning" hidden></div><label>Комментарий<input id="lessonComment"></label><button id="lessonSave" class="save">Добавить в календарь</button></div>
 
-<script src="app.js?v=master17"></script>
+<script src="app.js?v=master18"></script>
 </body>
 </html>

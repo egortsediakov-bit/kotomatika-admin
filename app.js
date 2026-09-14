@@ -505,7 +505,15 @@ function validateManualLeadForm(){
 }
 
 $('#newLeadBtn').addEventListener('click',openLeadCreateModal);
-$('#newLeadCancel').addEventListener('click',closeModals);
+$('#leadCreateModal [data-modal-close]').addEventListener('click',hardCloseLeadCreate);
+function hardCloseLeadCreate(){
+  const modal=$('#leadCreateModal');
+  const shade=$('#modalShade');
+  if(modal){modal.hidden=true;modal.style.display='none';}
+  if(shade){shade.hidden=true;shade.style.display='none';shade.style.pointerEvents='none';}
+  document.body.classList.remove('modal-open');
+}
+$('#newLeadCancel').addEventListener('click',hardCloseLeadCreate);
 $('#newLeadGrade').addEventListener('change',()=>suggestManualLeadProgram(true));
 $('#newLeadGoal').addEventListener('change',()=>{$('#newLeadGoal').dataset.auto='0'});
 $('#newLeadContact').addEventListener('blur',()=>{
@@ -3102,7 +3110,7 @@ $('#authForm').addEventListener('submit',async e=>{
 });
 
 // PWA
-let promptEvt=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();promptEvt=e;$('#install').classList.add('show')});$('#installBtn').onclick=async()=>{if(!promptEvt)return;promptEvt.prompt();await promptEvt.userChoice;promptEvt=null;$('#install').classList.remove('show')};if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=master15').catch(()=>{}));
+let promptEvt=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();promptEvt=e;$('#install').classList.add('show')});$('#installBtn').onclick=async()=>{if(!promptEvt)return;promptEvt.prompt();await promptEvt.userChoice;promptEvt=null;$('#install').classList.remove('show')};if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=master16').catch(()=>{}));
 
 // Старт
 (async()=>{

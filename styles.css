@@ -2168,3 +2168,234 @@ body.modal-open{overflow:hidden}
   .lead-form-section{padding:12px}
   .lead-create-actions{grid-template-columns:1fr!important}
 }
+
+
+/* ================= MASTER v19 — более чёткий фон и визуальная иерархия ================= */
+:root{
+  --paper:#ecebe6;
+  --workspace:#f6f5f1;
+  --surface:#ffffff;
+  --surface-soft:#f8f7f4;
+  --line:rgba(20,20,20,.105);
+  --shadow:0 14px 36px rgba(18,18,18,.07);
+  --shadow-soft:0 8px 22px rgba(18,18,18,.045);
+}
+
+/* Базовый фон стал чуть темнее, чтобы белые рабочие блоки читались сразу. */
+html,body{
+  background:
+    radial-gradient(circle at 12% 8%, rgba(255,90,31,.075), transparent 28%),
+    radial-gradient(circle at 88% 16%, rgba(17,17,17,.035), transparent 25%),
+    linear-gradient(180deg,#f1f0eb 0%,#ebeae5 55%,#e8e7e2 100%) !important;
+  background-attachment:fixed;
+}
+
+/* Едва заметная сетка помогает отделять фон от интерфейса, но не отвлекает. */
+body::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  z-index:-1;
+  pointer-events:none;
+  opacity:.38;
+  background-image:
+    linear-gradient(rgba(17,17,17,.018) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(17,17,17,.018) 1px,transparent 1px);
+  background-size:34px 34px;
+}
+
+/* Верхняя панель сильнее отделена от рабочего пространства. */
+.top{
+  background:rgba(248,247,243,.88)!important;
+  border-bottom:1px solid rgba(17,17,17,.11)!important;
+  box-shadow:0 8px 26px rgba(17,17,17,.045);
+  backdrop-filter:blur(18px) saturate(120%);
+}
+
+/* Рабочая область теперь воспринимается как отдельный "лист" CRM. */
+.layout{
+  gap:24px!important;
+}
+.layout main{
+  position:relative;
+  min-width:0;
+}
+.page.active{
+  position:relative;
+  background:rgba(248,247,243,.78);
+  border:1px solid rgba(17,17,17,.08);
+  border-radius:28px;
+  padding:22px;
+  box-shadow:
+    0 20px 50px rgba(17,17,17,.055),
+    inset 0 1px 0 rgba(255,255,255,.8);
+}
+
+/* Сайдбар выглядит как самостоятельная навигационная панель. */
+.side{
+  background:linear-gradient(180deg,#111 0%,#151515 100%)!important;
+  border:1px solid rgba(255,255,255,.065);
+  box-shadow:0 18px 42px rgba(0,0,0,.16);
+}
+.side button{
+  border:1px solid transparent;
+}
+.side button.active{
+  background:#2a2a2a!important;
+  border-color:rgba(255,255,255,.07);
+  box-shadow:inset 3px 0 0 var(--o);
+}
+
+/* Все основные функциональные карточки становятся контрастнее фона. */
+.metrics article,
+.panel,
+.card,
+.table,
+.student-grid article,
+.settings article,
+.chart,
+.group-card,
+.system-status-card,
+.stats-hero-insights article,
+.teacher-panel,
+.finance-card{
+  background:rgba(255,255,255,.94)!important;
+  border-color:rgba(17,17,17,.10)!important;
+  box-shadow:var(--shadow-soft);
+}
+
+/* Интерактивные блоки при наведении немного "поднимаются". */
+.metrics article,
+.panel,
+.group-card,
+.student-grid article,
+.settings article{
+  transition:
+    transform .16s ease,
+    box-shadow .16s ease,
+    border-color .16s ease;
+}
+.metrics article:hover,
+.group-card:hover,
+.student-grid article:hover{
+  box-shadow:0 14px 32px rgba(17,17,17,.085);
+  border-color:rgba(255,90,31,.20)!important;
+}
+
+/* Фильтры и поля больше не сливаются с фоном. */
+.tools,
+.lead-tools,
+.group-tools,
+.calendar-commandbar{
+  background:rgba(255,255,255,.58);
+  border:1px solid rgba(17,17,17,.075);
+  border-radius:16px;
+  padding:9px;
+  box-shadow:0 7px 18px rgba(17,17,17,.035);
+}
+.tools input,
+.tools select,
+.lead-tools input,
+.lead-tools select,
+.group-tools input,
+.group-tools select,
+.calendar-commandbar select{
+  background:#fff!important;
+  border-color:rgba(17,17,17,.12)!important;
+}
+
+/* Канбан получает более заметный контраст между колонками и карточками. */
+.lead-kanban-column{
+  background:rgba(239,238,233,.82)!important;
+  border-color:rgba(17,17,17,.10)!important;
+}
+.lead-kanban-card{
+  background:#fff!important;
+  box-shadow:0 5px 15px rgba(17,17,17,.055)!important;
+}
+.lead-kanban-card:hover{
+  box-shadow:0 12px 26px rgba(17,17,17,.10)!important;
+}
+
+/* Таблицы лучше отделены от страницы. */
+.table{
+  overflow:hidden;
+}
+table thead th{
+  background:#f2f1ed!important;
+  border-bottom-color:rgba(17,17,17,.10)!important;
+}
+table tbody tr{
+  background:#fff;
+}
+table tbody tr:nth-child(even){
+  background:#fcfbf8;
+}
+table tbody tr:hover{
+  background:#fff4ed!important;
+}
+
+/* Заголовки страниц лучше читаются на новом фоне. */
+.head{
+  padding:2px 2px 4px;
+}
+.head h1{
+  text-shadow:0 1px 0 rgba(255,255,255,.75);
+}
+
+/* Оранжевые функциональные акценты становятся более заметными. */
+.primary-btn,
+.save,
+.install button,
+.auth-submit{
+  box-shadow:0 8px 20px rgba(255,90,31,.17);
+}
+.primary-btn:hover,
+.save:hover{
+  filter:brightness(.98);
+  transform:translateY(-1px);
+}
+
+/* Drawer/модалки визуально отделены сильнее. */
+.drawer .shade{
+  background:rgba(20,20,20,.42)!important;
+  backdrop-filter:blur(2px);
+}
+.drawer aside{
+  background:#f3f2ee!important;
+  box-shadow:-18px 0 48px rgba(0,0,0,.16);
+}
+.modal{
+  box-shadow:0 26px 70px rgba(0,0,0,.20)!important;
+}
+
+/* Логин получает тот же фон, чтобы переход в CRM был цельным. */
+.auth-overlay{
+  background:
+    radial-gradient(circle at 18% 12%,rgba(255,90,31,.08),transparent 30%),
+    rgba(238,237,232,.93)!important;
+}
+.auth-card{
+  box-shadow:0 28px 70px rgba(17,17,17,.12)!important;
+}
+
+/* На узких экранах убираем лишнюю рамку вокруг всего листа. */
+@media(max-width:900px){
+  .page.active{
+    border-radius:22px;
+    padding:16px;
+  }
+}
+@media(max-width:560px){
+  .layout{padding:12px!important}
+  .page.active{
+    padding:12px;
+    border-radius:18px;
+  }
+  .tools,
+  .lead-tools,
+  .group-tools,
+  .calendar-commandbar{
+    padding:7px;
+  }
+}

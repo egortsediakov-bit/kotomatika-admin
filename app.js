@@ -1424,6 +1424,15 @@ const GROUP_WEEKDAYS={
 };
 const GROUP_WEEKDAYS_SHORT={1:'Пн',2:'Вт',3:'Ср',4:'Чт',5:'Пт',6:'Сб',7:'Вс'};
 
+// Единое сравнение класса группы и ученика.
+// Поддерживает значения вроде 8, "8", "8 класс".
+function schoolGradeKey(value){
+  const raw=String(value ?? '').trim().toLowerCase();
+  if(!raw)return '';
+  const m=raw.match(/(?:^|\D)(1[01]|[1-9])(?:\D|$)/);
+  return m?String(Number(m[1])):raw;
+}
+
 function groupMembers(groupId,activeOnly=true){
   return STATE.groupMembers.filter(m=>String(m.group_id)===String(groupId)&&(!activeOnly||m.status==='Активен'));
 }
@@ -1684,11 +1693,34 @@ function resetGroupForm(){
 }
 function populateGroupMemberSelect(){
   const select=$('#groupMemberStudent');
-  if(!currentGroup){select.innerHTML='';return}
+  const addBtn=$('#groupAddMember');
+  if(!currentGroup){
+    select.innerHTML='';
+    if(addBtn)addBtn.disabled=true;
+    return;
+  }
+
+  const groupGrade=schoolGradeKey(currentGroup.grade);
+  if(!groupGrade){
+    select.innerHTML='<option value="">Сначала укажите класс группы</option>';
+    if(addBtn)addBtn.disabled=true;
+    return;
+  }
+
   const existing=new Set(groupMembers(currentGroup.id,false).map(m=>String(m.student_id)));
-  const students=STATE.students.filter(s=>s.status==='Активен'&&!existing.has(String(s.id)));
-  select.innerHTML=students.map(s=>`<option value="${esc(s.id)}">${esc(s.student_name||'Ученик')} · ${esc(s.grade||'—')} класс</option>`).join('');
-  if(!students.length)select.innerHTML='<option value="">Нет доступных учеников</option>';
+  const students=STATE.students
+    .filter(s=>
+      s.status==='Активен' &&
+      !existing.has(String(s.id)) &&
+      schoolGradeKey(s.grade)===groupGrade
+    )
+    .sort((a,b)=>String(a.student_name||'').localeCompare(String(b.student_name||''),'ru'));
+
+  select.innerHTML=students.map(s=>`<option value="${esc(s.id)}">${esc(s.student_name||'Ученик')} · ${esc(s.grade||groupGrade)} класс</option>`).join('');
+  if(!students.length){
+    select.innerHTML=`<option value="">Нет доступных учеников ${esc(groupGrade)} класса</option>`;
+  }
+  if(addBtn)addBtn.disabled=!students.length;
 }
 function renderGroupDrawer(){
   if(!currentGroup)return;
@@ -1803,7 +1835,13 @@ $('#groupAddSlot').onclick=async()=>{
 $('#groupAddMember').onclick=async()=>{
   if(!currentGroup)return;
   const studentId=$('#groupMemberStudent').value;
-  if(!studentId){toast('Нет доступного ученика');return}
+  if(!studentId){toast(`Нет доступного ученика ${schoolGradeKey(currentGroup.grade)||''} класса`.trim());return}
+  const student=STATE.students.find(s=>String(s.id)===String(studentId));
+  if(!student || schoolGradeKey(student.grade)!==schoolGradeKey(currentGroup.grade)){
+    populateGroupMemberSelect();
+    showError('В группу можно добавить только ученика того же класса.');
+    return;
+  }
   try{
     await api('addGroupMember',{groupId:currentGroup.id,studentId});
     await bootstrap();
@@ -3203,7 +3241,7 @@ $('#authForm').addEventListener('submit',async e=>{
 });
 
 // PWA
-let promptEvt=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();promptEvt=e;$('#install').classList.add('show')});$('#installBtn').onclick=async()=>{if(!promptEvt)return;promptEvt.prompt();await promptEvt.userChoice;promptEvt=null;$('#install').classList.remove('show')};if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=master20').catch(()=>{}));
+let promptEvt=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();promptEvt=e;$('#install').classList.add('show')});$('#installBtn').onclick=async()=>{if(!promptEvt)return;promptEvt.prompt();await promptEvt.userChoice;promptEvt=null;$('#install').classList.remove('show')};if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=master21-class-filter').catch(()=>{}));
 
 // Старт
 (async()=>{

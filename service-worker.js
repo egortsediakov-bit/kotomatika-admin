@@ -1,5 +1,5 @@
-const C='kotomatika-crm-master-v21-class-filter';
-const A=['./','./index.html','./styles.css?v=master21-class-filter','./app.js?v=master21-class-filter','./manifest.webmanifest','./assets/icon-192.png','./assets/icon-512.png'];
+const C='kotomatika-crm-master-v22-hardened';
+const A=['./','./index.html','./styles.css?v=master22-hardened','./app.js?v=master22-hardened','./manifest.webmanifest','./assets/icon-192.png','./assets/icon-512.png'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(C).then(c=>c.addAll(A)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==C).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
 self.addEventListener('fetch',e=>{

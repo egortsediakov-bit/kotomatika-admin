@@ -104,30 +104,39 @@ function statusClass(s){
 }
 function empty(text='Пока пусто'){return `<div class="empty-mini">${esc(text)}</div>`}
 
+const MUTATING_ACTIONS=new Set(['createLead','updateLead','convertLeadToStudent','createTask','toggleTask','createStudent','updateStudent','deleteLead','deleteStudent','createGroup','updateGroup','createGroupSlot','deleteGroupSlot','addGroupMember','removeGroupMember','saveGroupAttendance','createPayment','createLesson','updateLessonStatus','updateTeacher','sendTelegramDigest']);
+const ACTIVE_MUTATIONS=new Set();
+
 async function api(action, payload={}, useAuth=true){
   const headers={'Content-Type':'application/json','Accept':'application/json'};
   const body={action,...payload};
   if(useAuth && token) body.sessionToken=token;
+  const mutation=useAuth&&MUTATING_ACTIONS.has(action);
+  if(mutation&&ACTIVE_MUTATIONS.has(action)) throw new Error('Эта операция уже выполняется. Дождитесь завершения.');
+  if(mutation) ACTIVE_MUTATIONS.add(action);
   setSync('Синхронизация…');
   let r;
   try{
-    r=await fetch(API_URL,{method:'POST',mode:'cors',cache:'no-store',headers,body:JSON.stringify(body)});
-  }catch(e){ setSync('Нет связи',false); throw new Error('Не удалось связаться с API'); }
-  const d=await r.json().catch(()=>({}));
-  if(r.status===401 && useAuth){
-    token=''; sessionStorage.removeItem(SESSION_KEY); document.body.classList.remove('is-authenticated');
-    $('#authOverlay').style.display='grid';
+    try{
+      r=await fetch(API_URL,{method:'POST',mode:'cors',cache:'no-store',headers,body:JSON.stringify(body)});
+    }catch(e){ setSync('Нет связи',false); throw new Error('Не удалось связаться с API'); }
+    const d=await r.json().catch(()=>({}));
+    if(r.status===401 && useAuth){
+      token=''; sessionStorage.removeItem(SESSION_KEY); document.body.classList.remove('is-authenticated');
+      $('#authOverlay').style.display='grid';
+    }
+    if(!r.ok || !d.ok){
+      setSync('Ошибка',false);
+      const base=d.error||`Ошибка API: ${r.status}`;
+      const details=d.details?String(d.details).slice(0,1000):'';
+      throw new Error(details?`${base}: ${details}`:base);
+    }
+    setSync('Данные сохранены');
+    return d;
+  }finally{
+    if(mutation) ACTIVE_MUTATIONS.delete(action);
   }
-  if(!r.ok || !d.ok){
-    setSync('Ошибка',false);
-    const base=d.error||`Ошибка API: ${r.status}`;
-    const details=d.details?String(d.details).slice(0,700):'';
-    throw new Error(details?`${base}: ${details}`:base);
-  }
-  setSync('Данные сохранены');
-  return d;
 }
-
 async function bootstrap(){
   const d=await api('bootstrap');
   ['leads','events','students','payments','tasks','lessons','teachers','authLog','groups','groupSlots','groupMembers','groupAttendance'].forEach(k=>STATE[k]=Array.isArray(d[k])?d[k]:[]);
@@ -3083,9 +3092,36 @@ $('#quickLessonToday').onclick=()=>openLessonModal();
 $('#quickPaymentToday').onclick=()=>openPaymentModal();
 $('#todayRefresh').onclick=()=>refreshData();$('#taskSave').onclick=async()=>{try{await api('createTask',{title:$('#taskTitle').value,dueAt:inputToDisplay($('#taskDue').value),taskType:$('#taskType').value,...taskContext});closeModals();await bootstrap();if(currentLead)renderLeadTasks();toast('Задача создана')}catch(e){showError(e.message)}};
 function populateStudentSelects(){const opts=STATE.students.filter(s=>s.status!=='Архив').map(s=>`<option value="${esc(s.id)}">${esc(s.student_name||'Ученик')} · ${esc(s.grade||'—')} класс</option>`).join('');$('#paymentStudent').innerHTML=opts;$('#lessonStudent').innerHTML=opts}
-function addMonthInput(v){if(!v)return '';const d=new Date(`${v}:00+03:00`);d.setMonth(d.getMonth()+1);return toDateInput(d.toISOString())}
+function addMonthInput(v){
+  const raw=String(v||'').trim();
+  const m=raw.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/);
+  if(!m)return '';
+  let y=Number(m[1]),mo=Number(m[2]),day=Number(m[3]);
+  mo+=1;if(mo===13){mo=1;y+=1}
+  const maxDay=new Date(Date.UTC(y,mo,0)).getUTCDate();
+  day=Math.min(day,maxDay);
+  return `${y}-${pad2(mo)}-${pad2(day)}T${m[4]}:${m[5]}`;
+}
 function openPaymentModal(studentId=''){populateStudentSelects();if(studentId)$('#paymentStudent').value=studentId;const s=STATE.students.find(x=>String(x.id)===String(studentId));$('#paymentAmount').value=s?.monthly_price_rub||'';$('#paymentAt').value=nowInput();$('#paymentNext').value=addMonthInput(nowInput());$('#paymentComment').value='';openModal('#paymentModal')}
-$('#newPaymentBtn').onclick=()=>openPaymentModal();$('#paymentSave').onclick=async()=>{try{await api('createPayment',{studentId:$('#paymentStudent').value,amountRub:cleanPositiveInt($('#paymentAmount').value,0),paymentAt:inputToDisplay($('#paymentAt').value),method:$('#paymentMethod').value,nextPaymentAt:inputToDisplay($('#paymentNext').value),comment:$('#paymentComment').value});closeModals();await bootstrap();if(currentStudent)openStudent(currentStudent.id);toast('Оплата сохранена')}catch(e){showError(e.message)}};
+$('#newPaymentBtn').onclick=()=>openPaymentModal();$('#paymentSave').onclick=async()=>{
+  const studentId=$('#paymentStudent').value;
+  const amountRub=cleanPositiveInt($('#paymentAmount').value,0);
+  const paymentAt=$('#paymentAt').value;
+  if(!studentId){showError('Выберите ученика');return}
+  if(amountRub<=0){showError('Укажите сумму оплаты больше 0');return}
+  if(!paymentAt){showError('Укажите дату оплаты');return}
+  const btn=$('#paymentSave'),oldText=btn.textContent;
+  btn.disabled=true;btn.textContent='Сохраняю…';
+  try{
+    const result=await api('createPayment',{
+      studentId,amountRub,paymentAt:inputToDisplay(paymentAt),method:$('#paymentMethod').value,
+      nextPaymentAt:inputToDisplay($('#paymentNext').value),comment:$('#paymentComment').value
+    });
+    closeModals();await bootstrap();if(currentStudent)openStudent(currentStudent.id);
+    const warning=Array.isArray(result.warnings)&&result.warnings.length?result.warnings[0]:'';
+    toast(warning?`Оплата сохранена. ${warning}`:'Оплата сохранена');
+  }catch(e){showError(e.message)}finally{btn.disabled=false;btn.textContent=oldText}
+};
 function lessonDraftInterval(){
   const raw=$('#lessonAt').value,teacher=$('#lessonTeacher').value;
   if(!raw||!teacher)return null;
@@ -3241,7 +3277,7 @@ $('#authForm').addEventListener('submit',async e=>{
 });
 
 // PWA
-let promptEvt=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();promptEvt=e;$('#install').classList.add('show')});$('#installBtn').onclick=async()=>{if(!promptEvt)return;promptEvt.prompt();await promptEvt.userChoice;promptEvt=null;$('#install').classList.remove('show')};if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=master21-class-filter').catch(()=>{}));
+let promptEvt=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();promptEvt=e;$('#install').classList.add('show')});$('#installBtn').onclick=async()=>{if(!promptEvt)return;promptEvt.prompt();await promptEvt.userChoice;promptEvt=null;$('#install').classList.remove('show')};if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=master22-hardened').catch(()=>{}));
 
 // Старт
 (async()=>{

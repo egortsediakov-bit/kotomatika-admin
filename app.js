@@ -3122,33 +3122,66 @@ $('#newPaymentBtn').onclick=()=>openPaymentModal();$('#paymentSave').onclick=asy
     toast(warning?`Оплата сохранена. ${warning}`:'Оплата сохранена');
   }catch(e){showError(e.message)}finally{btn.disabled=false;btn.textContent=oldText}
 };
-function lessonDraftInterval(){
+function lessonRepeatSpec(){
+  const everyWeeks=Math.max(0,Math.min(4,Number($('#lessonRepeat')?.value||0)));
+  const count=everyWeeks?Math.max(2,Math.min(52,cleanPositiveInt($('#lessonRepeatCount')?.value,8))):1;
+  return {everyWeeks,count};
+}
+function lessonDraftOccurrences(){
+  const raw=$('#lessonAt').value;
+  if(!raw)return [];
+  const first=new Date(`${raw}:00+03:00`);
+  if(!Number.isFinite(first.getTime()))return [];
+  const {everyWeeks,count}=lessonRepeatSpec();
+  const stepMs=everyWeeks*7*24*60*60*1000;
+  return Array.from({length:count},(_,i)=>new Date(first.getTime()+stepMs*i));
+}
+function lessonDraftInterval(atDate=null){
   const raw=$('#lessonAt').value,teacher=$('#lessonTeacher').value;
   if(!raw||!teacher)return null;
-  const start=new Date(`${raw}:00+03:00`).getTime();
+  const start=atDate instanceof Date?atDate.getTime():new Date(`${raw}:00+03:00`).getTime();
   if(!Number.isFinite(start))return null;
   const duration=Math.max(15,Number($('#lessonDuration').value||60));
   return {teacher,start,end:start+duration*60000,duration};
 }
 function lessonDraftConflicts(){
-  const draft=lessonDraftInterval();if(!draft)return [];
-  const draftKey=$('#lessonAt').value.slice(0,10);
-  const events=[...allCalendarEvents(),...groupSessionEventsForKeys(draftKey?[draftKey]:[])];
-  return events.filter(e=>{
-    if(e.teacher!==draft.teacher||e.status==='Отменено')return false;
-    const a=new Date(e.at).getTime(),b=eventEndMs(e);
-    return draft.start<b&&a<draft.end;
+  const occurrences=lessonDraftOccurrences();
+  if(!occurrences.length)return [];
+  const keys=[...new Set(occurrences.map(d=>dateKey(d.toISOString())))];
+  const events=[...allCalendarEvents(),...groupSessionEventsForKeys(keys)];
+  const conflicts=[];
+  occurrences.forEach((date,occurrenceIndex)=>{
+    const draft=lessonDraftInterval(date);if(!draft)return;
+    events.forEach(e=>{
+      if(e.teacher!==draft.teacher||e.status==='Отменено')return;
+      const a=new Date(e.at).getTime(),b=eventEndMs(e);
+      if(draft.start<b&&a<draft.end)conflicts.push({event:e,occurrenceIndex,date});
+    });
   });
+  return conflicts;
+}
+function renderLessonRepeatPreview(){
+  const box=$('#lessonRepeatPreview'),countLabel=$('#lessonRepeatCountLabel');
+  if(!box||!countLabel)return;
+  const {everyWeeks,count}=lessonRepeatSpec();
+  countLabel.hidden=!everyWeeks;
+  if(!everyWeeks){box.hidden=true;box.textContent='';return}
+  const occurrences=lessonDraftOccurrences();
+  const last=occurrences.at(-1);
+  const freq=everyWeeks===1?'каждую неделю':`каждые ${everyWeeks} недели`;
+  box.hidden=false;
+  box.textContent=last?`Будет создано ${count} занятий: ${freq}, до ${last.toLocaleDateString('ru-RU',{timeZone:'Europe/Moscow'})}.`:`Будет создано ${count} занятий: ${freq}.`;
 }
 function renderLessonConflictPreview(){
   const box=$('#lessonConflictWarning');if(!box)return;
   const conflicts=lessonDraftConflicts();
   box.hidden=!conflicts.length;
   box.innerHTML=conflicts.length?`
-    <b>⚠ Найдено пересечение: ${conflicts.length}</b>
-    ${conflicts.slice(0,3).map(e=>`<span>${esc(shortFmt(e.at))} · ${esc(e.teacher)} · ${esc(e.title)}</span>`).join('')}
-    <small>Можно выбрать другое время или подтвердить добавление вручную.</small>`:'';
+    <b>⚠ Найдено пересечений: ${conflicts.length}</b>
+    ${conflicts.slice(0,3).map(c=>`<span>${esc(shortFmt(c.date.toISOString()))} · ${esc(c.event.teacher)} · ${esc(c.event.title)}</span>`).join('')}
+    <small>Можно изменить график или подтвердить добавление вручную.</small>`:'';
 }
+function refreshLessonSchedulePreview(){renderLessonRepeatPreview();renderLessonConflictPreview()}
 function openLessonModal(studentId='',teacher='',atValue=''){
   populateStudentSelects();
   if(studentId)$('#lessonStudent').value=studentId;
@@ -3157,36 +3190,51 @@ function openLessonModal(studentId='',teacher='',atValue=''){
   $('#lessonAt').value=atValue||nowInput(1,18,0);
   $('#lessonDuration').value=60;
   $('#lessonType').value='Занятие';
+  $('#lessonRepeat').value='0';
+  $('#lessonRepeatCount').value='8';
   $('#lessonComment').value='';
-  renderLessonConflictPreview();
+  refreshLessonSchedulePreview();
   openModal('#lessonModal');
 }
 $('#newLessonBtn').onclick=()=>openLessonModal('','','');
 $('#lessonSave').onclick=async()=>{
+  const studentId=$('#lessonStudent').value;
+  const teacher=$('#lessonTeacher').value;
+  const startsAt=$('#lessonAt').value;
+  if(!studentId){showError('Выберите ученика');return}
+  if(!teacher){showError('Выберите преподавателя');return}
+  if(!startsAt){showError('Укажите дату и время первого занятия');return}
+  const {everyWeeks,count}=lessonRepeatSpec();
   const conflicts=lessonDraftConflicts();
   if(conflicts.length){
-    const ok=confirm(`У ${$('#lessonTeacher').value} уже есть ${conflicts.length} событие(я) в это время. Всё равно добавить занятие?`);
+    const ok=confirm(`В выбранном графике найдено пересечений: ${conflicts.length}. Всё равно создать занятия?`);
     if(!ok)return;
   }
+  const btn=$('#lessonSave'),oldText=btn.textContent;
+  btn.disabled=true;btn.textContent=count>1?`Создаю ${count} занятий…`:'Добавляю…';
   try{
-    await api('createLesson',{
-      studentId:$('#lessonStudent').value,
-      teacher:$('#lessonTeacher').value,
-      startsAt:inputToDisplay($('#lessonAt').value),
+    const result=await api('createLesson',{
+      studentId,
+      teacher,
+      startsAt:inputToDisplay(startsAt),
       durationMin:cleanPositiveInt($('#lessonDuration').value,60),
       lessonType:$('#lessonType').value,
       status:'Запланировано',
-      comment:$('#lessonComment').value
+      comment:$('#lessonComment').value,
+      repeatEveryWeeks:everyWeeks,
+      repeatCount:count
     });
     closeModals();
     await bootstrap();
-    selectedAgendaKey=$('#lessonAt').value.slice(0,10)||selectedAgendaKey;
-    toast('Занятие добавлено');
-  }catch(e){showError(e.message)}
+    selectedAgendaKey=startsAt.slice(0,10)||selectedAgendaKey;
+    const created=Number(result.createdCount||count||1);
+    toast(created>1?`Создано занятий: ${created}`:'Занятие добавлено');
+  }catch(e){showError(e.message)}finally{btn.disabled=false;btn.textContent=oldText}
 };
 $('#paymentStudent').addEventListener('change',()=>{const s=STATE.students.find(x=>String(x.id)===String($('#paymentStudent').value));if(s?.monthly_price_rub)$('#paymentAmount').value=s.monthly_price_rub});
-$('#lessonStudent').addEventListener('change',()=>{const s=STATE.students.find(x=>String(x.id)===String($('#lessonStudent').value));if(s?.teacher_id)$('#lessonTeacher').value=s.teacher_id;renderLessonConflictPreview()});
-['#lessonTeacher','#lessonAt','#lessonDuration'].forEach(id=>$(id).addEventListener('input',renderLessonConflictPreview));
+$('#lessonStudent').addEventListener('change',()=>{const s=STATE.students.find(x=>String(x.id)===String($('#lessonStudent').value));if(s?.teacher_id)$('#lessonTeacher').value=s.teacher_id;refreshLessonSchedulePreview()});
+['#lessonTeacher','#lessonAt','#lessonDuration','#lessonRepeat','#lessonRepeatCount'].forEach(id=>$(id).addEventListener('input',refreshLessonSchedulePreview));
+$('#lessonRepeat').addEventListener('change',refreshLessonSchedulePreview);
 
 // ---------- Делегированные действия ----------
 document.addEventListener('click',async e=>{
@@ -3277,7 +3325,7 @@ $('#authForm').addEventListener('submit',async e=>{
 });
 
 // PWA
-let promptEvt=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();promptEvt=e;$('#install').classList.add('show')});$('#installBtn').onclick=async()=>{if(!promptEvt)return;promptEvt.prompt();await promptEvt.userChoice;promptEvt=null;$('#install').classList.remove('show')};if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=master22-hardened').catch(()=>{}));
+let promptEvt=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();promptEvt=e;$('#install').classList.add('show')});$('#installBtn').onclick=async()=>{if(!promptEvt)return;promptEvt.prompt();await promptEvt.userChoice;promptEvt=null;$('#install').classList.remove('show')};if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=master23-recurring').catch(()=>{}));
 
 // Старт
 (async()=>{

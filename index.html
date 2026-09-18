@@ -9,7 +9,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="assets/icon-192.png">
   <link rel="apple-touch-icon" href="assets/icon-192.png">
-  <link rel="stylesheet" href="styles.css?v=master22-hardened">
+  <link rel="stylesheet" href="styles.css?v=master23-recurring">
 </head>
 <body>
 <div id="authOverlay" class="auth-overlay">
@@ -1040,8 +1040,8 @@
   </div>
 </div>
 
-<div id="lessonModal" class="modal lesson-modal-pro" hidden><div class="modal-top"><h3>Новое занятие</h3><button data-modal-close>×</button></div><label>Ученик<select id="lessonStudent"></select></label><div class="two"><label>Преподаватель<select id="lessonTeacher"><option></option><option>Егор</option><option>Миша</option><option>Иван</option><option>Никита</option></select></label><label>Дата и время<input id="lessonAt" type="datetime-local"></label></div><div class="two"><label>Длительность, мин<input id="lessonDuration" type="number" value="60" min="15" max="240"></label><label>Тип<select id="lessonType"><option>Занятие</option><option>Пробный</option><option>Консультация</option></select></label></div><div id="lessonConflictWarning" class="lesson-conflict-warning" hidden></div><label>Комментарий<input id="lessonComment"></label><button id="lessonSave" class="save">Добавить в календарь</button></div>
+<div id="lessonModal" class="modal lesson-modal-pro" hidden><div class="modal-top"><h3>Новое занятие</h3><button data-modal-close>×</button></div><label>Ученик<select id="lessonStudent"></select></label><div class="two"><label>Преподаватель<select id="lessonTeacher"><option></option><option>Егор</option><option>Миша</option><option>Иван</option><option>Никита</option></select></label><label>Первое занятие<input id="lessonAt" type="datetime-local"></label></div><div class="two"><label>Длительность, мин<input id="lessonDuration" type="number" value="60" min="15" max="240"></label><label>Тип<select id="lessonType"><option>Занятие</option><option>Пробный</option><option>Консультация</option></select></label></div><div class="two"><label>Повторение<select id="lessonRepeat"><option value="0">Одно занятие</option><option value="1">Каждую неделю</option><option value="2">Каждые 2 недели</option><option value="3">Каждые 3 недели</option><option value="4">Каждые 4 недели</option></select></label><label id="lessonRepeatCountLabel" hidden>Количество занятий<input id="lessonRepeatCount" type="number" value="8" min="2" max="52"></label></div><small id="lessonRepeatPreview" class="field-hint" hidden></small><div id="lessonConflictWarning" class="lesson-conflict-warning" hidden></div><label>Комментарий<input id="lessonComment"></label><button id="lessonSave" class="save">Добавить в календарь</button></div>
 
-<script src="app.js?v=master22-hardened"></script>
+<script src="app.js?v=master23-recurring"></script>
 </body>
 </html>

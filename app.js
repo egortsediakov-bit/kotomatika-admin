@@ -31,6 +31,19 @@ const esc = v => String(v ?? '')
 const rub = n => new Intl.NumberFormat('ru-RU').format(Number(n||0)) + ' ₽';
 const pad2 = n => String(n).padStart(2,'0');
 
+// Нормализация данных перед отправкой в CRM API.
+// Числовые input.value в браузере всегда строки; для YDB это важно,
+// потому что Int64/Uint64-параметры должны уходить как JSON number.
+const cleanText = v => String(v ?? '').trim();
+function cleanInt(v, fallback=0){
+  if(v===null || v===undefined || String(v).trim()==='') return fallback;
+  const n=Number(v);
+  return Number.isFinite(n) ? Math.trunc(n) : fallback;
+}
+function cleanPositiveInt(v, fallback=0){
+  return Math.max(0, cleanInt(v, fallback));
+}
+
 function showError(msg){
   const el=$('#globalError'); el.textContent=msg; el.hidden=false;
   setTimeout(()=>{el.hidden=true},9000);
@@ -1302,8 +1315,52 @@ function openStudent(id=null){
 }
 $('#newStudentBtn').onclick=()=>openStudent();$('#studentClose').onclick=()=>$('#studentDrawer').classList.remove('open');$('#studentDrawer .shade').onclick=()=>$('#studentDrawer').classList.remove('open');
 $('#saveStudent').onclick=async()=>{
-  const payload={studentName:$('#sStudentName').value,parentName:$('#sParentName').value,grade:$('#sGrade').value,contact:$('#sContact').value,program:$('#sProgram').value,teacher:$('#sTeacher').value,status:$('#sStatus').value,tariff:$('#sTariff').value,monthlyPriceRub:$('#sPrice').value,nextPaymentAt:inputToDisplay($('#sNextPayment').value),notes:$('#sNotes').value};
-  try{if(currentStudent)await api('updateStudent',{id:currentStudent.id,...payload});else await api('createStudent',payload);await bootstrap(); if(currentStudent){currentStudent=STATE.students.find(s=>String(s.id)===String(currentStudent.id));openStudent(currentStudent.id)}else $('#studentDrawer').classList.remove('open');toast('Ученик сохранён')}catch(e){showError(e.message)}
+  const btn=$('#saveStudent');
+  const editingId=currentStudent?.id||'';
+  const studentName=cleanText($('#sStudentName').value);
+  if(!studentName){showError('Укажите ФИО ученика');$('#sStudentName').focus();return}
+
+  const payload={
+    studentName,
+    parentName:cleanText($('#sParentName').value),
+    grade:cleanText($('#sGrade').value),
+    contact:cleanText($('#sContact').value),
+    program:cleanText($('#sProgram').value),
+    teacher:cleanText($('#sTeacher').value),
+    status:cleanText($('#sStatus').value)||'Активен',
+    tariff:cleanText($('#sTariff').value),
+    // ВАЖНО: number, а не строка из <input type="number">.
+    // Это устраняет типичную YDB ERROR(1030): Type annotation
+    // при параметре Int64/Uint64.
+    monthlyPriceRub:cleanPositiveInt($('#sPrice').value,0),
+    nextPaymentAt:inputToDisplay($('#sNextPayment').value),
+    notes:cleanText($('#sNotes').value)
+  };
+
+  btn.disabled=true;
+  const oldText=btn.textContent;
+  btn.textContent='Сохраняем…';
+  try{
+    if(editingId) await api('updateStudent',{id:editingId,...payload});
+    else await api('createStudent',payload);
+    await bootstrap();
+    if(editingId){
+      currentStudent=STATE.students.find(s=>String(s.id)===String(editingId))||null;
+      if(currentStudent) openStudent(editingId);
+      else $('#studentDrawer').classList.remove('open');
+    }else{
+      $('#studentDrawer').classList.remove('open');
+    }
+    toast(editingId?'Ученик обновлён':'Ученик создан');
+  }catch(e){
+    const msg=String(e?.message||e);
+    if(/Type annotation|ERROR\(1030\)/i.test(msg)){
+      showError(`${msg}. Клиент уже отправляет числовые поля правильным JSON-типом; если ошибка останется, её источник находится в Yandex Cloud Function (backend), которой нет в этом архиве.`);
+    }else showError(msg);
+  }finally{
+    btn.disabled=false;
+    btn.textContent=oldText;
+  }
 };
 $('#deleteStudent').addEventListener('click',async()=>{
   if(!currentStudent)return;
@@ -1711,7 +1768,7 @@ $('#groupSave').onclick=async()=>{
     if(currentGroup){
       await api('updateGroup',{
         id:currentGroup.id,name:$('#groupName').value,grade:$('#groupGrade').value,program:$('#groupProgram').value,
-        teacher:$('#groupTeacher').value,capacity:$('#groupCapacity').value,status:$('#groupStatus').value,notes:$('#groupNotes').value
+        teacher:$('#groupTeacher').value,capacity:cleanPositiveInt($('#groupCapacity').value,6),status:$('#groupStatus').value,notes:$('#groupNotes').value
       });
       await bootstrap();
       currentGroup=STATE.groups.find(g=>String(g.id)===String(currentGroup.id));
@@ -1720,8 +1777,8 @@ $('#groupSave').onclick=async()=>{
     }else{
       const d=await api('createGroup',{
         name:$('#groupName').value,grade:$('#groupGrade').value,program:$('#groupProgram').value,
-        teacher:$('#groupTeacher').value,capacity:$('#groupCapacity').value,status:$('#groupStatus').value,notes:$('#groupNotes').value,
-        weekday:$('#groupInitialWeekday').value,startTime:$('#groupInitialTime').value,durationMin:$('#groupInitialDuration').value
+        teacher:$('#groupTeacher').value,capacity:cleanPositiveInt($('#groupCapacity').value,6),status:$('#groupStatus').value,notes:$('#groupNotes').value,
+        weekday:$('#groupInitialWeekday').value,startTime:$('#groupInitialTime').value,durationMin:cleanPositiveInt($('#groupInitialDuration').value,60)
       });
       await bootstrap();
       currentGroup=STATE.groups.find(g=>String(g.id)===String(d.id));
@@ -1735,7 +1792,7 @@ $('#groupAddSlot').onclick=async()=>{
   if(!currentGroup)return;
   try{
     await api('createGroupSlot',{
-      groupId:currentGroup.id,weekday:$('#groupSlotWeekday').value,startTime:$('#groupSlotTime').value,durationMin:$('#groupSlotDuration').value
+      groupId:currentGroup.id,weekday:$('#groupSlotWeekday').value,startTime:$('#groupSlotTime').value,durationMin:cleanPositiveInt($('#groupSlotDuration').value,60)
     });
     await bootstrap();
     currentGroup=STATE.groups.find(g=>String(g.id)===String(currentGroup.id));
@@ -2990,7 +3047,7 @@ $('#todayRefresh').onclick=()=>refreshData();$('#taskSave').onclick=async()=>{tr
 function populateStudentSelects(){const opts=STATE.students.filter(s=>s.status!=='Архив').map(s=>`<option value="${esc(s.id)}">${esc(s.student_name||'Ученик')} · ${esc(s.grade||'—')} класс</option>`).join('');$('#paymentStudent').innerHTML=opts;$('#lessonStudent').innerHTML=opts}
 function addMonthInput(v){if(!v)return '';const d=new Date(`${v}:00+03:00`);d.setMonth(d.getMonth()+1);return toDateInput(d.toISOString())}
 function openPaymentModal(studentId=''){populateStudentSelects();if(studentId)$('#paymentStudent').value=studentId;const s=STATE.students.find(x=>String(x.id)===String(studentId));$('#paymentAmount').value=s?.monthly_price_rub||'';$('#paymentAt').value=nowInput();$('#paymentNext').value=addMonthInput(nowInput());$('#paymentComment').value='';openModal('#paymentModal')}
-$('#newPaymentBtn').onclick=()=>openPaymentModal();$('#paymentSave').onclick=async()=>{try{await api('createPayment',{studentId:$('#paymentStudent').value,amountRub:$('#paymentAmount').value,paymentAt:inputToDisplay($('#paymentAt').value),method:$('#paymentMethod').value,nextPaymentAt:inputToDisplay($('#paymentNext').value),comment:$('#paymentComment').value});closeModals();await bootstrap();if(currentStudent)openStudent(currentStudent.id);toast('Оплата сохранена')}catch(e){showError(e.message)}};
+$('#newPaymentBtn').onclick=()=>openPaymentModal();$('#paymentSave').onclick=async()=>{try{await api('createPayment',{studentId:$('#paymentStudent').value,amountRub:cleanPositiveInt($('#paymentAmount').value,0),paymentAt:inputToDisplay($('#paymentAt').value),method:$('#paymentMethod').value,nextPaymentAt:inputToDisplay($('#paymentNext').value),comment:$('#paymentComment').value});closeModals();await bootstrap();if(currentStudent)openStudent(currentStudent.id);toast('Оплата сохранена')}catch(e){showError(e.message)}};
 function lessonDraftInterval(){
   const raw=$('#lessonAt').value,teacher=$('#lessonTeacher').value;
   if(!raw||!teacher)return null;
@@ -3042,7 +3099,7 @@ $('#lessonSave').onclick=async()=>{
       studentId:$('#lessonStudent').value,
       teacher:$('#lessonTeacher').value,
       startsAt:inputToDisplay($('#lessonAt').value),
-      durationMin:$('#lessonDuration').value,
+      durationMin:cleanPositiveInt($('#lessonDuration').value,60),
       lessonType:$('#lessonType').value,
       status:'Запланировано',
       comment:$('#lessonComment').value
@@ -3062,7 +3119,7 @@ document.addEventListener('click',async e=>{
   const lead=e.target.closest('[data-open-lead]');if(lead&&!e.target.closest('[data-lead-select]')){e.preventDefault();openLead(lead.dataset.openLead);return}
   const student=e.target.closest('[data-open-student]');if(student){e.preventDefault();openStudent(student.dataset.openStudent);return}
   const pay=e.target.closest('[data-payment-for]');if(pay){e.preventDefault();openPaymentModal(pay.dataset.paymentFor);return}
-  const teacherSave=e.target.closest('[data-save-teacher]');if(teacherSave){const row=teacherSave.closest('[data-teacher-row]');try{await api('updateTeacher',{id:teacherSave.dataset.saveTeacher,weeklyCapacity:row.querySelector('[data-capacity]').value,telegram:row.querySelector('[data-telegram]').value,active:row.querySelector('[data-active]').checked,notes:''});await bootstrap();toast('Настройки преподавателя сохранены')}catch(err){showError(err.message)}return}
+  const teacherSave=e.target.closest('[data-save-teacher]');if(teacherSave){const row=teacherSave.closest('[data-teacher-row]');try{await api('updateTeacher',{id:teacherSave.dataset.saveTeacher,weeklyCapacity:cleanPositiveInt(row.querySelector('[data-capacity]').value,20),telegram:row.querySelector('[data-telegram]').value,active:row.querySelector('[data-active]').checked,notes:''});await bootstrap();toast('Настройки преподавателя сохранены')}catch(err){showError(err.message)}return}
   const done=e.target.closest('[data-lesson-done]');if(done){try{await api('updateLessonStatus',{id:done.dataset.lessonDone,status:'Проведено'});await bootstrap();if(currentStudent)openStudent(currentStudent.id);toast('Занятие отмечено проведённым')}catch(err){showError(err.message)}return}
 });
 document.addEventListener('change',async e=>{
@@ -3146,7 +3203,7 @@ $('#authForm').addEventListener('submit',async e=>{
 });
 
 // PWA
-let promptEvt=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();promptEvt=e;$('#install').classList.add('show')});$('#installBtn').onclick=async()=>{if(!promptEvt)return;promptEvt.prompt();await promptEvt.userChoice;promptEvt=null;$('#install').classList.remove('show')};if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=master19').catch(()=>{}));
+let promptEvt=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();promptEvt=e;$('#install').classList.add('show')});$('#installBtn').onclick=async()=>{if(!promptEvt)return;promptEvt.prompt();await promptEvt.userChoice;promptEvt=null;$('#install').classList.remove('show')};if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=master20').catch(()=>{}));
 
 // Старт
 (async()=>{

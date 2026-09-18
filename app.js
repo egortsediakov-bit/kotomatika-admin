@@ -3122,19 +3122,67 @@ $('#newPaymentBtn').onclick=()=>openPaymentModal();$('#paymentSave').onclick=asy
     toast(warning?`Оплата сохранена. ${warning}`:'Оплата сохранена');
   }catch(e){showError(e.message)}finally{btn.disabled=false;btn.textContent=oldText}
 };
+function ensureLessonScheduleControls(){
+  const modal=$('#lessonModal');
+  if(!modal||$('#lessonRepeat'))return;
+  const conflict=$('#lessonConflictWarning');
+  if(!conflict)return;
+  const row=document.createElement('div');
+  row.className='two';
+  row.id='lessonScheduleFields';
+  row.innerHTML=`<label>График
+    <select id="lessonRepeat">
+      <option value="daily">Каждый день</option>
+      <option value="every2days">Каждые 2 дня</option>
+      <option value="weekly" selected>Каждую неделю</option>
+      <option value="biweekly">Каждые 2 недели</option>
+      <option value="monthly">Каждый месяц</option>
+    </select>
+  </label>
+  <label id="lessonRepeatCountLabel">Количество занятий
+    <input id="lessonRepeatCount" type="number" value="1" min="1" max="52" inputmode="numeric">
+  </label>`;
+  conflict.before(row);
+  if(!$('#lessonRepeatPreview')){
+    const hint=document.createElement('small');
+    hint.id='lessonRepeatPreview';hint.className='field-hint';hint.hidden=true;
+    conflict.before(hint);
+  }
+}
+ensureLessonScheduleControls();
+
+const LESSON_REPEAT_RULES=new Set(['daily','every2days','weekly','biweekly','monthly']);
 function lessonRepeatSpec(){
-  const everyWeeks=Math.max(0,Math.min(4,Number($('#lessonRepeat')?.value||0)));
-  const count=everyWeeks?Math.max(2,Math.min(52,cleanPositiveInt($('#lessonRepeatCount')?.value,8))):1;
-  return {everyWeeks,count};
+  ensureLessonScheduleControls();
+  let rule=String($('#lessonRepeat')?.value||'weekly');
+  if(!LESSON_REPEAT_RULES.has(rule))rule='weekly';
+  const count=Math.max(1,Math.min(52,cleanPositiveInt($('#lessonRepeatCount')?.value,1)));
+  return {rule,count};
+}
+function lessonRuleLabel(rule){
+  return ({daily:'каждый день',every2days:'каждые 2 дня',weekly:'каждую неделю',biweekly:'каждые 2 недели',monthly:'каждый месяц'})[rule]||'каждую неделю';
+}
+function daysInMonthUtc(year,month1){return new Date(Date.UTC(year,month1,0)).getUTCDate()}
+function lessonOccurrenceFromRaw(raw,rule,index){
+  const m=String(raw||'').match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/);
+  if(!m)return null;
+  const y=Number(m[1]),mo=Number(m[2]),day=Number(m[3]),hh=Number(m[4]),mi=Number(m[5]);
+  if(rule==='monthly'){
+    const zero=(mo-1)+index;
+    const ty=y+Math.floor(zero/12), tm=((zero%12)+12)%12+1;
+    const td=Math.min(day,daysInMonthUtc(ty,tm));
+    const d=new Date(`${ty}-${pad2(tm)}-${pad2(td)}T${pad2(hh)}:${pad2(mi)}:00+03:00`);
+    return Number.isFinite(d.getTime())?d:null;
+  }
+  const stepDays=rule==='daily'?1:rule==='every2days'?2:rule==='weekly'?7:rule==='biweekly'?14:0;
+  const first=new Date(`${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:00+03:00`);
+  if(!Number.isFinite(first.getTime()))return null;
+  return new Date(first.getTime()+stepDays*index*86400000);
 }
 function lessonDraftOccurrences(){
-  const raw=$('#lessonAt').value;
-  if(!raw)return [];
-  const first=new Date(`${raw}:00+03:00`);
-  if(!Number.isFinite(first.getTime()))return [];
-  const {everyWeeks,count}=lessonRepeatSpec();
-  const stepMs=everyWeeks*7*24*60*60*1000;
-  return Array.from({length:count},(_,i)=>new Date(first.getTime()+stepMs*i));
+  const raw=$('#lessonAt').value;if(!raw)return [];
+  const {rule,count}=lessonRepeatSpec();
+  return Array.from({length:count},(_,i)=>lessonOccurrenceFromRaw(raw,rule,i)).filter(Boolean);
 }
 function lessonDraftInterval(atDate=null){
   const raw=$('#lessonAt').value,teacher=$('#lessonTeacher').value;
@@ -3145,8 +3193,7 @@ function lessonDraftInterval(atDate=null){
   return {teacher,start,end:start+duration*60000,duration};
 }
 function lessonDraftConflicts(){
-  const occurrences=lessonDraftOccurrences();
-  if(!occurrences.length)return [];
+  const occurrences=lessonDraftOccurrences();if(!occurrences.length)return [];
   const keys=[...new Set(occurrences.map(d=>dateKey(d.toISOString())))];
   const events=[...allCalendarEvents(),...groupSessionEventsForKeys(keys)];
   const conflicts=[];
@@ -3161,80 +3208,46 @@ function lessonDraftConflicts(){
   return conflicts;
 }
 function renderLessonRepeatPreview(){
-  const box=$('#lessonRepeatPreview'),countLabel=$('#lessonRepeatCountLabel');
-  if(!box||!countLabel)return;
-  const {everyWeeks,count}=lessonRepeatSpec();
-  countLabel.hidden=!everyWeeks;
-  if(!everyWeeks){box.hidden=true;box.textContent='';return}
-  const occurrences=lessonDraftOccurrences();
-  const last=occurrences.at(-1);
-  const freq=everyWeeks===1?'каждую неделю':`каждые ${everyWeeks} недели`;
+  ensureLessonScheduleControls();
+  const box=$('#lessonRepeatPreview'),countInput=$('#lessonRepeatCount');if(!box||!countInput)return;
+  const {rule,count}=lessonRepeatSpec();
+  countInput.disabled=false;
+  const occurrences=lessonDraftOccurrences(),last=occurrences.at(-1);
   box.hidden=false;
-  box.textContent=last?`Будет создано ${count} занятий: ${freq}, до ${last.toLocaleDateString('ru-RU',{timeZone:'Europe/Moscow'})}.`:`Будет создано ${count} занятий: ${freq}.`;
+  box.textContent=count===1
+    ?'Будет создано 1 занятие.'
+    :(last?`Будет создано ${count} занятий: ${lessonRuleLabel(rule)}, до ${last.toLocaleDateString('ru-RU',{timeZone:'Europe/Moscow'})}.`:`Будет создано ${count} занятий: ${lessonRuleLabel(rule)}.`);
 }
 function renderLessonConflictPreview(){
   const box=$('#lessonConflictWarning');if(!box)return;
-  const conflicts=lessonDraftConflicts();
-  box.hidden=!conflicts.length;
-  box.innerHTML=conflicts.length?`
-    <b>⚠ Найдено пересечений: ${conflicts.length}</b>
-    ${conflicts.slice(0,3).map(c=>`<span>${esc(shortFmt(c.date.toISOString()))} · ${esc(c.event.teacher)} · ${esc(c.event.title)}</span>`).join('')}
-    <small>Можно изменить график или подтвердить добавление вручную.</small>`:'';
+  const conflicts=lessonDraftConflicts();box.hidden=!conflicts.length;
+  box.innerHTML=conflicts.length?`<b>⚠ Найдено пересечений: ${conflicts.length}</b>${conflicts.slice(0,3).map(c=>`<span>${esc(shortFmt(c.date.toISOString()))} · ${esc(c.event.teacher)} · ${esc(c.event.title)}</span>`).join('')}<small>Можно изменить график или подтвердить добавление вручную.</small>`:'';
 }
 function refreshLessonSchedulePreview(){renderLessonRepeatPreview();renderLessonConflictPreview()}
 function openLessonModal(studentId='',teacher='',atValue=''){
-  populateStudentSelects();
-  if(studentId)$('#lessonStudent').value=studentId;
+  ensureLessonScheduleControls();populateStudentSelects();if(studentId)$('#lessonStudent').value=studentId;
   const s=STATE.students.find(x=>String(x.id)===String($('#lessonStudent').value));
-  $('#lessonTeacher').value=teacher||s?.teacher_id||'';
-  $('#lessonAt').value=atValue||nowInput(1,18,0);
-  $('#lessonDuration').value=60;
-  $('#lessonType').value='Занятие';
-  $('#lessonRepeat').value='0';
-  $('#lessonRepeatCount').value='8';
-  $('#lessonComment').value='';
-  refreshLessonSchedulePreview();
-  openModal('#lessonModal');
+  $('#lessonTeacher').value=teacher||s?.teacher_id||'';$('#lessonAt').value=atValue||nowInput(1,18,0);
+  $('#lessonDuration').value=60;$('#lessonType').value='Занятие';$('#lessonRepeat').value='weekly';$('#lessonRepeatCount').value='1';$('#lessonComment').value='';
+  refreshLessonSchedulePreview();openModal('#lessonModal');
 }
 $('#newLessonBtn').onclick=()=>openLessonModal('','','');
 $('#lessonSave').onclick=async()=>{
-  const studentId=$('#lessonStudent').value;
-  const teacher=$('#lessonTeacher').value;
-  const startsAt=$('#lessonAt').value;
-  if(!studentId){showError('Выберите ученика');return}
-  if(!teacher){showError('Выберите преподавателя');return}
-  if(!startsAt){showError('Укажите дату и время первого занятия');return}
-  const {everyWeeks,count}=lessonRepeatSpec();
-  const conflicts=lessonDraftConflicts();
-  if(conflicts.length){
-    const ok=confirm(`В выбранном графике найдено пересечений: ${conflicts.length}. Всё равно создать занятия?`);
-    if(!ok)return;
-  }
-  const btn=$('#lessonSave'),oldText=btn.textContent;
-  btn.disabled=true;btn.textContent=count>1?`Создаю ${count} занятий…`:'Добавляю…';
+  const studentId=$('#lessonStudent').value,teacher=$('#lessonTeacher').value,startsAt=$('#lessonAt').value;
+  if(!studentId){showError('Выберите ученика');return}if(!teacher){showError('Выберите преподавателя');return}if(!startsAt){showError('Укажите дату и время первого занятия');return}
+  const {rule,count}=lessonRepeatSpec();
+  const conflicts=lessonDraftConflicts();if(conflicts.length&&!confirm(`В выбранном графике найдено пересечений: ${conflicts.length}. Всё равно создать занятия?`))return;
+  const btn=$('#lessonSave'),oldText=btn.textContent;btn.disabled=true;btn.textContent=count>1?`Создаю ${count} занятий…`:'Добавляю…';
   try{
-    const result=await api('createLesson',{
-      studentId,
-      teacher,
-      startsAt:inputToDisplay(startsAt),
-      durationMin:cleanPositiveInt($('#lessonDuration').value,60),
-      lessonType:$('#lessonType').value,
-      status:'Запланировано',
-      comment:$('#lessonComment').value,
-      repeatEveryWeeks:everyWeeks,
-      repeatCount:count
-    });
-    closeModals();
-    await bootstrap();
-    selectedAgendaKey=startsAt.slice(0,10)||selectedAgendaKey;
-    const created=Number(result.createdCount||count||1);
-    toast(created>1?`Создано занятий: ${created}`:'Занятие добавлено');
+    const result=await api('createLesson',{studentId,teacher,startsAt:inputToDisplay(startsAt),durationMin:cleanPositiveInt($('#lessonDuration').value,60),lessonType:$('#lessonType').value,status:'Запланировано',comment:$('#lessonComment').value,repeatRule:rule,repeatCount:count});
+    closeModals();await bootstrap();selectedAgendaKey=startsAt.slice(0,10)||selectedAgendaKey;
+    const created=Number(result.createdCount||count||1);toast(created>1?`Создано занятий: ${created}`:'Занятие добавлено');
   }catch(e){showError(e.message)}finally{btn.disabled=false;btn.textContent=oldText}
 };
 $('#paymentStudent').addEventListener('change',()=>{const s=STATE.students.find(x=>String(x.id)===String($('#paymentStudent').value));if(s?.monthly_price_rub)$('#paymentAmount').value=s.monthly_price_rub});
 $('#lessonStudent').addEventListener('change',()=>{const s=STATE.students.find(x=>String(x.id)===String($('#lessonStudent').value));if(s?.teacher_id)$('#lessonTeacher').value=s.teacher_id;refreshLessonSchedulePreview()});
-['#lessonTeacher','#lessonAt','#lessonDuration','#lessonRepeat','#lessonRepeatCount'].forEach(id=>$(id).addEventListener('input',refreshLessonSchedulePreview));
-$('#lessonRepeat').addEventListener('change',refreshLessonSchedulePreview);
+['#lessonTeacher','#lessonAt','#lessonDuration','#lessonRepeat','#lessonRepeatCount'].forEach(id=>{const el=$(id);if(el)el.addEventListener('input',refreshLessonSchedulePreview)});
+if($('#lessonRepeat'))$('#lessonRepeat').addEventListener('change',refreshLessonSchedulePreview);
 
 // ---------- Делегированные действия ----------
 document.addEventListener('click',async e=>{
@@ -3325,7 +3338,7 @@ $('#authForm').addEventListener('submit',async e=>{
 });
 
 // PWA
-let promptEvt=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();promptEvt=e;$('#install').classList.add('show')});$('#installBtn').onclick=async()=>{if(!promptEvt)return;promptEvt.prompt();await promptEvt.userChoice;promptEvt=null;$('#install').classList.remove('show')};if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=master23-recurring').catch(()=>{}));
+let promptEvt=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();promptEvt=e;$('#install').classList.add('show')});$('#installBtn').onclick=async()=>{if(!promptEvt)return;promptEvt.prompt();await promptEvt.userChoice;promptEvt=null;$('#install').classList.remove('show')};if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=master25-schedule-exact').catch(()=>{}));
 
 // Старт
 (async()=>{

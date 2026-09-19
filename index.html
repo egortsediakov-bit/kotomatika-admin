@@ -9,7 +9,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="assets/icon-192.png">
   <link rel="apple-touch-icon" href="assets/icon-192.png">
-  <link rel="stylesheet" href="styles.css?v=master25-schedule-exact">
+  <link rel="stylesheet" href="styles.css?v=master26-group-delete">
 </head>
 <body>
 <div id="authOverlay" class="auth-overlay">
@@ -826,6 +826,11 @@
 
   <button id="groupSave" class="save">Сохранить группу</button>
 
+  <div id="groupDangerZone" class="danger-zone" hidden>
+    <div><b>Удалить группу</b><small>Удалятся расписание, состав и посещаемость этой группы. Карточки учеников, оплаты и индивидуальные занятия останутся.</small></div>
+    <button id="deleteGroup" class="danger-button" type="button">Удалить группу</button>
+  </div>
+
   <div id="groupExistingBlocks" hidden>
     <div class="card">
       <div class="panel-head"><div><em>Расписание</em><h3>Регулярные занятия</h3></div><span id="groupSlotsCount" class="panel-caption"></span></div>
@@ -1071,6 +1076,6 @@
   <button id="lessonSave" class="save">Добавить в календарь</button>
 </div>
 
-<script src="app.js?v=master25-schedule-exact"></script>
+<script src="app.js?v=master26-group-delete"></script>
 </body>
 </html>

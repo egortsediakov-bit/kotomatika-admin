@@ -104,7 +104,7 @@ function statusClass(s){
 }
 function empty(text='Пока пусто'){return `<div class="empty-mini">${esc(text)}</div>`}
 
-const MUTATING_ACTIONS=new Set(['createLead','updateLead','convertLeadToStudent','createTask','toggleTask','createStudent','updateStudent','deleteLead','deleteStudent','createGroup','updateGroup','createGroupSlot','deleteGroupSlot','addGroupMember','removeGroupMember','saveGroupAttendance','createPayment','createLesson','updateLessonStatus','updateTeacher','sendTelegramDigest']);
+const MUTATING_ACTIONS=new Set(['createLead','updateLead','convertLeadToStudent','createTask','toggleTask','createStudent','updateStudent','deleteLead','deleteStudent','createGroup','updateGroup','deleteGroup','createGroupSlot','deleteGroupSlot','addGroupMember','removeGroupMember','saveGroupAttendance','createPayment','createLesson','updateLessonStatus','updateTeacher','sendTelegramDigest']);
 const ACTIVE_MUTATIONS=new Set();
 
 async function api(action, payload={}, useAuth=true){
@@ -1687,6 +1687,7 @@ function resetGroupForm(){
   $('#groupSnapshot').hidden=true;
   $('#groupExistingBlocks').hidden=true;
   $('#groupInitialSchedule').hidden=false;
+  $('#groupDangerZone').hidden=true;
   $('#groupName').value='';
   $('#groupGrade').value='';
   $('#groupProgram').value='';
@@ -1751,6 +1752,7 @@ function renderGroupDrawer(){
   $('#groupSnapshot').hidden=false;
   $('#groupExistingBlocks').hidden=false;
   $('#groupInitialSchedule').hidden=true;
+  $('#groupDangerZone').hidden=false;
   $('#groupMemberCount').textContent=`${members.length} / ${cap}`;
   $('#groupFreeText').textContent=groupFreePlaces(g)?`${groupFreePlaces(g)} свободных мест`:'Группа заполнена';
   $('#groupTeacherText').textContent=g.teacher_id||'Не назначен';
@@ -1829,6 +1831,26 @@ $('#groupSave').onclick=async()=>{
   }catch(e){showError(e.message)}
   finally{btn.disabled=false}
 };
+
+$('#deleteGroup').onclick=async()=>{
+  if(!currentGroup)return;
+  const name=currentGroup.name||'Группа';
+  const members=groupMembers(currentGroup.id,false).length;
+  const slots=groupSlots(currentGroup.id).length;
+  const warning=`Удалить группу «${name}»?\n\nБудут удалены:\n• группа;\n• ${slots} записей расписания;\n• ${members} связей с учениками;\n• посещаемость этой группы.\n\nКарточки учеников, оплаты и индивидуальные занятия останутся.`;
+  if(!confirm(warning))return;
+  const btn=$('#deleteGroup');
+  btn.disabled=true;
+  try{
+    const deleted=await api('deleteGroup',{id:currentGroup.id});
+    $('#groupDrawer').classList.remove('open');
+    currentGroup=null;
+    await bootstrap();
+    toast(`Группа «${deleted.label||name}» удалена`);
+  }catch(e){showError(e.message)}
+  finally{btn.disabled=false}
+};
+
 $('#groupAddSlot').onclick=async()=>{
   if(!currentGroup)return;
   try{

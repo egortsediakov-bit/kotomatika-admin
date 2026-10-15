@@ -525,21 +525,40 @@ function manualLeadName(value,label){
   return {value:v};
 }
 function normalizeManualLeadContact(value){
-  const raw=String(value||'').trim();
+  const raw=String(value||'')
+    .normalize('NFKC')
+    .replace(/[\u200B-\u200D\u2060\uFEFF]/g,'')
+    .trim();
+
   if(!raw)return {error:'Укажите телефон или Telegram'};
 
   if(raw.startsWith('@')){
-    if(!/^@[A-Za-z0-9_]{5,32}$/.test(raw))return {error:'Telegram: укажите @username (5–32 символа: латиница, цифры, _)'}; 
-    return {value:raw,type:'telegram'};
+    const telegram=raw.replace(/\s+/g,'');
+    if(!/^@[A-Za-z0-9_]{5,32}$/.test(telegram)){
+      return {error:'Telegram: укажите @username (5–32 символа: латиница, цифры, _)'};
+    }
+    return {value:telegram,type:'telegram'};
   }
 
-  const digits=raw.replace(/\\D/g,'');
+  const digits=raw.replace(/\D/g,'');
   let normalized='';
-  if(digits.length===11 && digits[0]==='8') normalized='+7'+digits.slice(1);
-  else if(digits.length===11 && digits[0]==='7') normalized='+7'+digits.slice(1);
-  else return {error:'Телефон: введите российский номер с +7 или 8, например +7 999 123-45-67'};
 
-  if(!/^\\+7\\d{10}$/.test(normalized))return {error:'Проверьте номер телефона'};
+  // Российские форматы: +7XXXXXXXXXX, 7XXXXXXXXXX, 8XXXXXXXXXX.
+  // Дополнительно принимаем 10 цифр без кода страны и добавляем +7.
+  if(digits.length===11 && digits[0]==='8'){
+    normalized='+7'+digits.slice(1);
+  }else if(digits.length===11 && digits[0]==='7'){
+    normalized='+'+digits;
+  }else if(digits.length===10){
+    normalized='+7'+digits;
+  }else{
+    return {error:'Телефон: введите российский номер, например +7 999 123-45-67'};
+  }
+
+  if(!/^\+7\d{10}$/.test(normalized)){
+    return {error:'Проверьте номер телефона'};
+  }
+
   return {value:normalized,type:'phone'};
 }
 function setLeadFormError(message=''){

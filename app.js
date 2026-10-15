@@ -281,15 +281,14 @@ function leadMathroomState(lead,changes={}){
 
 function shouldSyncLeadUpdateToMathroom(lead,changes={}){
   const next=leadMathroomState(lead,changes);
-  if(!next.ready)return false;
+  if(!next.ready||next.status!=='Пробный')return false;
 
-  // Полное сохранение карточки передаёт teacher/trial явно.
+  // Mathroom синхронизируем только пока заявка реально находится на этапе
+  // «Пробный». Это не даёт обычному сохранению CRM переписать уже завершённый
+  // урок или вернуть его из completed/in_progress обратно в assigned.
   if(Object.prototype.hasOwnProperty.call(changes,'trial'))return true;
-
-  // Быстрые действия должны синхронизировать переход в «Пробный»
-  // и переназначение преподавателя уже существующего пробного.
   if(changes.status==='Пробный')return true;
-  if(Object.prototype.hasOwnProperty.call(changes,'teacher')&&next.status==='Пробный')return true;
+  if(Object.prototype.hasOwnProperty.call(changes,'teacher'))return true;
 
   return false;
 }
@@ -1306,7 +1305,7 @@ function leadNextRecommendation(l){
   }
   if(l.status==='Пробный'&&!hasTrial){
     return {tone:'danger',eyebrow:'Пробный не состоялся',title:'Переназначить дату пробного',
-      meta:'Занятие удалено из Mathroom или дата больше не актуальна',
+      meta:'Урок не начался вовремя, была неявка, отмена или удаление в Mathroom',
       action:'schedule',button:'Выбрать новую дату'};
   }
   if(hasTrial&&noTeacher&&['Связались','Пробный'].includes(l.status)){
@@ -1314,8 +1313,9 @@ function leadNextRecommendation(l){
       meta:`Пробный: ${fmt(l.trial_at)}`,action:'assign',button:'Назначить'};
   }
   if(l.status==='Пробный'&&trialPast){
-    return {tone:'orange',eyebrow:'После занятия',title:'Зафиксировать результат пробного',
-      meta:`Пробный был ${fmt(l.trial_at)}`,action:'trialDone',button:'Пробный проведён'};
+    return {tone:'orange',eyebrow:'Mathroom проверяет результат',title:'Ожидаем завершение пробного',
+      meta:'CRM обновится автоматически после «Завершить урок» и отметки посещаемости в Mathroom',
+      action:'',button:''};
   }
   if(l.status==='Пробный проведён'||l.status==='Записан'){
     return {tone:'green',eyebrow:'Продажа',title:'Получить решение и оформить оплату',

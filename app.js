@@ -648,6 +648,60 @@ $('#newLeadContact').addEventListener('blur',()=>{
   if(normalized.value)field.value=normalized.value;
 }));
 
+function createdLeadIdFromResult(result){
+  return result?.id
+    ?? result?.leadId
+    ?? result?.lead_id
+    ?? result?.lead?.id
+    ?? result?.data?.id
+    ?? result?.data?.leadId
+    ?? '';
+}
+
+function findFreshlyCreatedLead({studentName,contact,teacher,trial,status,startedAt}){
+  const expectedStudent=String(studentName||'').trim().toLocaleLowerCase('ru-RU');
+  const expectedContact=String(contact||'').trim().toLocaleLowerCase('ru-RU');
+  const expectedTeacher=String(teacher||'').trim();
+  const expectedTrial=String(trial||'').trim();
+  const expectedStatus=String(status||'').trim();
+
+  const candidates=STATE.leads.filter(l=>{
+    const student=String(l.student_name||l.studentName||'').trim().toLocaleLowerCase('ru-RU');
+    const contactValue=String(l.contact||'').trim().toLocaleLowerCase('ru-RU');
+    const teacherValue=String(l.teacher_id||l.teacher||'').trim();
+    const trialValue=l.trial_at?fmt(l.trial_at):'';
+    const createdMs=l.created_at?new Date(l.created_at).getTime():0;
+
+    if(expectedStudent&&student!==expectedStudent)return false;
+    if(expectedContact&&contactValue!==expectedContact)return false;
+    if(expectedTeacher&&expectedTeacher!=='Не назначен'&&teacherValue!==expectedTeacher)return false;
+    if(expectedTrial&&trialValue!==expectedTrial)return false;
+    if(expectedStatus&&String(l.status||'').trim()!==expectedStatus)return false;
+
+    // Если API отдаёт created_at, не подхватываем старую одноимённую заявку.
+    if(createdMs&&startedAt&&createdMs<startedAt-120000)return false;
+    return true;
+  });
+
+  candidates.sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));
+  return candidates[0]||null;
+}
+
+async function resolveCreatedLeadId(result,signature){
+  const direct=createdLeadIdFromResult(result);
+  if(direct)return String(direct);
+
+  // createLead API не обязан возвращать id. В таком случае берём заявку
+  // из канонического bootstrap-ответа CRM после успешного создания.
+  for(let attempt=0;attempt<3;attempt++){
+    await bootstrap();
+    const lead=findFreshlyCreatedLead(signature);
+    if(lead?.id)return String(lead.id);
+    if(attempt<2)await new Promise(resolve=>setTimeout(resolve,250*(attempt+1)));
+  }
+  return '';
+}
+
 $('#newLeadSave').addEventListener('click',async()=>{
   const btn=$('#newLeadSave');
   const valid=validateManualLeadForm();
@@ -659,6 +713,10 @@ $('#newLeadSave').addEventListener('click',async()=>{
   try{
     const teacher=$('#newLeadTeacher').value;
     const trialValue=$('#newLeadTrial').value;
+    const trial=inputToDisplay(trialValue);
+    const status=$('#newLeadStatus').value;
+    const startedAt=Date.now();
+
     const result=await api('createLead',{
       parentName:valid.parentName,
       studentName:valid.studentName,
@@ -666,26 +724,60 @@ $('#newLeadSave').addEventListener('click',async()=>{
       contact:valid.contact,
       goal:valid.goal,
       source:$('#newLeadSource').value,
-      status:$('#newLeadStatus').value,
+      status,
       teacher,
-      trial:inputToDisplay(trialValue),
+      trial,
       clientComment:$('#newLeadClientComment').value.trim(),
       managerNote:$('#newLeadManagerNote').value.trim()
     });
 
+    const shouldSync=teacher&&teacher!=='Не назначен'&&trialValue;
+    let leadId=createdLeadIdFromResult(result);
     let mathroom=null;
-    if(result.id&&teacher&&teacher!=='Не назначен'&&trialValue){
-      try{
-        mathroom=await syncLeadToMathroom(result.id);
-      }catch(syncError){
-        showError(`Заявка создана, но Mathroom не синхронизирован: ${syncError.message}`);
+    let mathroomError=null;
+
+    // Важный момент: ручное createLead исторически не возвращает result.id.
+    // Поэтому при необходимости сначала обновляем CRM и находим созданную
+    // запись по её фактическим полям.
+    if(shouldSync||!leadId){
+      leadId=await resolveCreatedLeadId(result,{
+        studentName:valid.studentName,
+        contact:valid.contact,
+        teacher,
+        trial,
+        status,
+        startedAt
+      });
+    }
+
+    if(shouldSync){
+      if(!leadId){
+        mathroomError=new Error('CRM создала заявку, но не удалось определить её ID для синхронизации');
+      }else{
+        try{
+          setSync('Mathroom…');
+          mathroom=await syncLeadToMathroom(leadId);
+          setSync('Mathroom синхронизирован');
+        }catch(syncError){
+          mathroomError=syncError;
+        }
       }
     }
 
     closeModals();
-    await bootstrap();
-    toast(mathroom?'Заявка создана · ученик и пробный добавлены в Mathroom':'Заявка создана');
-    if(result.id)openLead(result.id);
+
+    // resolveCreatedLeadId уже делал bootstrap; если прямой id пришёл с API,
+    // обновим состояние здесь.
+    if(!STATE.leads.some(l=>String(l.id)===String(leadId)))await bootstrap();
+
+    if(mathroomError){
+      showError(`Заявка создана, но Mathroom не синхронизирован: ${mathroomError.message}`);
+      toast('Заявка создана · синхронизация Mathroom требует повтора');
+    }else{
+      toast(mathroom?'Заявка создана · ученик и пробный добавлены в Mathroom':'Заявка создана');
+    }
+
+    if(leadId)openLead(leadId);
   }catch(e){
     setLeadFormError(e.message);
     showError(e.message);

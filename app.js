@@ -1,5 +1,6 @@
 const API_URL = 'https://functions.yandexcloud.net/d4ebvaiffdtsos840t16';
 const MATHROOM_SYNC_URL = 'https://zuemhjhcgxzjivxvucbp.supabase.co/functions/v1/crm-sync-trial';
+const MATHROOM_STATUS_URL = 'https://zuemhjhcgxzjivxvucbp.supabase.co/functions/v1/crm-trial-status';
 const MOSCOW_TZ = 'Europe/Moscow';
 const TEACHERS = ['Егор','Миша','Иван','Никита'];
 const SESSION_KEY = 'kotomatika_crm_session_v1';
@@ -162,6 +163,110 @@ async function syncLeadToMathroom(leadId){
   return d;
 }
 
+let mathroomStatusSyncRunning=null;
+let mathroomStatusPollTimer=null;
+
+function sameMinute(a,b){
+  const ta=a?new Date(a).getTime():NaN;
+  const tb=b?new Date(b).getTime():NaN;
+  return Number.isFinite(ta)&&Number.isFinite(tb)&&Math.abs(ta-tb)<60000;
+}
+
+async function fetchMathroomTrialStates(){
+  if(!token) return [];
+  let r;
+  try{
+    r=await fetch(MATHROOM_STATUS_URL,{
+      method:'POST',
+      mode:'cors',
+      cache:'no-store',
+      headers:{'Content-Type':'application/json','Accept':'application/json'},
+      body:JSON.stringify({sessionToken:token})
+    });
+  }catch{
+    throw new Error('Не удалось получить статусы пробных из Mathroom');
+  }
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok||!d.ok){
+    const base=d.error||`Ошибка статусов Mathroom: ${r.status}`;
+    const details=d.details?String(d.details).slice(0,700):'';
+    throw new Error(details?`${base}: ${details}`:base);
+  }
+  return Array.isArray(d.states)?d.states:[];
+}
+
+async function syncTrialStatusesFromMathroom({silent=true}={}){
+  if(!token)return {changed:0,completed:0,deleted:0,rescheduled:0};
+  if(mathroomStatusSyncRunning)return mathroomStatusSyncRunning;
+
+  mathroomStatusSyncRunning=(async()=>{
+    const states=await fetchMathroomTrialStates();
+    let changed=0,completed=0,deleted=0,rescheduled=0;
+    const drawerOpen=$('#drawer')?.classList.contains('open');
+    const openLeadId=drawerOpen&&currentLead?String(currentLead.id):'';
+
+    for(const row of states){
+      const lead=STATE.leads.find(x=>String(x.id)===String(row.leadId));
+      if(!lead)continue;
+
+      if(row.state==='completed'){
+        // Не откатываем более поздние этапы воронки вроде «Оплатил».
+        if(['Пробный','Записан'].includes(lead.status)){
+          await api('updateLead',leadPayload(lead,{status:'Пробный проведён'}));
+          lead.status='Пробный проведён';
+          changed++;completed++;
+        }
+        continue;
+      }
+
+      if(row.state==='deleted'){
+        // Удалённый незавершённый пробный = дата больше не действительна.
+        // «Оплатил»/закрытые заявки не откатываем назад.
+        if(['Пробный','Записан'].includes(lead.status)&&(lead.trial_at||lead.status!=='Пробный')){
+          await api('updateLead',leadPayload(lead,{status:'Пробный',trial:''}));
+          lead.status='Пробный';
+          lead.trial_at=null;
+          changed++;deleted++;
+        }
+        continue;
+      }
+
+      if(row.state==='scheduled'&&row.scheduledAt&&lead.status==='Пробный'&&!sameMinute(lead.trial_at,row.scheduledAt)){
+        // Если пробный перенесли прямо в Mathroom — CRM тоже получает новую дату.
+        await api('updateLead',leadPayload(lead,{trial:fmt(row.scheduledAt)}));
+        lead.trial_at=row.scheduledAt;
+        changed++;rescheduled++;
+      }
+    }
+
+    if(changed){
+      await bootstrap();
+      if(openLeadId&&STATE.leads.some(x=>String(x.id)===openLeadId))openLead(openLeadId);
+    }
+
+    if(!silent&&changed){
+      const parts=[];
+      if(completed)parts.push(`проведено: ${completed}`);
+      if(deleted)parts.push(`нужно переназначить: ${deleted}`);
+      if(rescheduled)parts.push(`перенесено: ${rescheduled}`);
+      toast(`Mathroom → CRM · ${parts.join(' · ')}`);
+    }
+
+    return {changed,completed,deleted,rescheduled};
+  })();
+
+  try{return await mathroomStatusSyncRunning}
+  finally{mathroomStatusSyncRunning=null}
+}
+
+function startMathroomStatusPolling(){
+  if(mathroomStatusPollTimer)clearInterval(mathroomStatusPollTimer);
+  mathroomStatusPollTimer=setInterval(()=>{
+    if(!token||document.visibilityState!=='visible')return;
+    syncTrialStatusesFromMathroom({silent:true}).catch(e=>console.warn('[Mathroom → CRM]',e));
+  },30000);
+}
+
 function leadMathroomState(lead,changes={}){
   const teacher=String(changes.teacher??lead?.teacher_id??'').trim();
   const trial=String(changes.trial??(lead?.trial_at?fmt(lead.trial_at):'')).trim();
@@ -276,6 +381,7 @@ async function refreshData(){
   if(btn){btn.disabled=true;btn.classList.add('loading');}
   try{
     await bootstrap();
+    await syncTrialStatusesFromMathroom({silent:true});
     await reconcileReadyTrialLeads();
 
     if(leadWasOpen && leadId){
@@ -1024,7 +1130,9 @@ function leadPayload(l,changes={}){
     id:l.id,
     status:changes.status??l.status??'Новая',
     teacher:changes.teacher??l.teacher_id??'Не назначен',
-    trial:l.trial_at?fmt(l.trial_at):'',
+    trial:Object.prototype.hasOwnProperty.call(changes,'trial')
+      ? String(changes.trial||'')
+      : (l.trial_at?fmt(l.trial_at):''),
     note:l.manager_note||''
   };
 }
@@ -1196,6 +1304,11 @@ function leadNextRecommendation(l){
       meta:noTeacher?'Сначала можно выбрать преподавателя и удобное время':'Выберите дату и время пробного',
       action:'schedule',button:'Выбрать дату'};
   }
+  if(l.status==='Пробный'&&!hasTrial){
+    return {tone:'danger',eyebrow:'Пробный не состоялся',title:'Переназначить дату пробного',
+      meta:'Занятие удалено из Mathroom или дата больше не актуальна',
+      action:'schedule',button:'Выбрать новую дату'};
+  }
   if(hasTrial&&noTeacher&&['Связались','Пробный'].includes(l.status)){
     return {tone:'danger',eyebrow:'Нужно подготовить',title:'Назначить преподавателя',
       meta:`Пробный: ${fmt(l.trial_at)}`,action:'assign',button:'Назначить'};
@@ -1237,6 +1350,7 @@ function renderLeadSmart(){
     <span class="lead-status-chip ${statusClass(l.status)}"><i></i>${esc(l.status||'Новая')}</span>
     ${l.teacher_id?`<span class="lead-soft-chip">👨‍🏫 ${esc(l.teacher_id)}</span>`:''}
     ${l.trial_at?`<span class="lead-soft-chip">◷ ${esc(shortFmt(l.trial_at))}</span>`:''}
+    ${l.status==='Пробный'&&!l.trial_at?`<span class="lead-warning-chip">Нужна новая дата пробного</span>`:''}
     ${warning?`<span class="lead-warning-chip">Без ответа 24+ ч.</span>`:''}
   `;
 
@@ -3653,7 +3767,7 @@ document.addEventListener('click',async e=>{
 
 // ---------- Авторизация ----------
 $('#authForm').addEventListener('submit',async e=>{
-  e.preventDefault();const err=$('#authError');err.hidden=true;try{const d=await api('login',{username:$('#authUser').value.trim(),password:$('#authPassword').value},false);token=d.token;sessionStorage.setItem(SESSION_KEY,token);$('#authPassword').value='';document.body.classList.add('is-authenticated');$('#authOverlay').style.display='none';await bootstrap();await reconcileReadyTrialLeads();toast('Добро пожаловать')}catch(ex){err.textContent=ex.message;err.hidden=false}
+  e.preventDefault();const err=$('#authError');err.hidden=true;try{const d=await api('login',{username:$('#authUser').value.trim(),password:$('#authPassword').value},false);token=d.token;sessionStorage.setItem(SESSION_KEY,token);$('#authPassword').value='';document.body.classList.add('is-authenticated');$('#authOverlay').style.display='none';await bootstrap();await syncTrialStatusesFromMathroom({silent:true});await reconcileReadyTrialLeads();startMathroomStatusPolling();toast('Добро пожаловать')}catch(ex){err.textContent=ex.message;err.hidden=false}
 });
 
 // PWA
@@ -3662,5 +3776,5 @@ let promptEvt=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDe
 // Старт
 (async()=>{
   const hash=location.hash.slice(1);showPage(['today','leads','calendar','students','groups','teachers','finance','stats','settings'].includes(hash)?hash:'today');
-  if(token){try{document.body.classList.add('is-authenticated');$('#authOverlay').style.display='none';await bootstrap();await reconcileReadyTrialLeads()}catch(e){showError(e.message)}}
+  if(token){try{document.body.classList.add('is-authenticated');$('#authOverlay').style.display='none';await bootstrap();await syncTrialStatusesFromMathroom({silent:true});await reconcileReadyTrialLeads();startMathroomStatusPolling()}catch(e){showError(e.message)}}
 })();

@@ -2399,3 +2399,66 @@ table tbody tr:hover{
     padding:7px;
   }
 }
+
+
+/* ================= MASTER v28 — ручная заявка помещается в экран ================= */
+/*
+  Форма ручной заявки длиннее большинства экранов.
+  В MASTER v18 ей был задан overflow:hidden, поэтому нижние поля физически
+  оказывались за пределами окна, а sticky-кнопки перекрывали содержимое.
+*/
+.lead-create-modal{
+  top:12px!important;
+  bottom:12px!important;
+  transform:translateX(-50%)!important;
+  max-height:none!important;
+  height:auto!important;
+  overflow-x:hidden!important;
+  overflow-y:auto!important;
+  overscroll-behavior:contain;
+  scrollbar-gutter:stable;
+  -webkit-overflow-scrolling:touch;
+}
+
+/* Заголовок остаётся доступным при длинной форме. */
+.lead-create-modal .lead-create-hero{
+  position:sticky!important;
+  top:0;
+  z-index:6;
+}
+
+/* Кнопки остаются внизу, но теперь двигаются вместе с реальным скроллом формы,
+   а не перекрывают недоступное содержимое. */
+.lead-create-modal .lead-create-actions{
+  position:sticky!important;
+  bottom:0;
+  z-index:7;
+  margin-bottom:0!important;
+  padding-bottom:max(14px,env(safe-area-inset-bottom))!important;
+  box-shadow:0 -10px 24px rgba(247,246,243,.92);
+}
+
+/* Чуть больше нижнего запаса у последнего блока: его поля полностью видны
+   над закреплённой панелью действий. */
+.lead-create-modal .lead-form-section:last-of-type{
+  margin-bottom:14px;
+}
+
+@media(max-height:760px){
+  .lead-create-modal{
+    top:8px!important;
+    bottom:8px!important;
+  }
+  .lead-create-modal .lead-create-hero{
+    padding-top:14px;
+    padding-bottom:14px;
+  }
+}
+
+@media(max-width:650px){
+  .lead-create-modal{
+    top:6px!important;
+    bottom:6px!important;
+    width:calc(100% - 12px)!important;
+  }
+}

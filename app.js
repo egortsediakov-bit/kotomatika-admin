@@ -162,6 +162,41 @@ async function syncLeadToMathroom(leadId){
   return d;
 }
 
+function leadMathroomState(lead,changes={}){
+  const teacher=String(changes.teacher??lead?.teacher_id??'').trim();
+  const trial=String(changes.trial??(lead?.trial_at?fmt(lead.trial_at):'')).trim();
+  const status=String(changes.status??lead?.status??'').trim();
+  return {
+    teacher,
+    trial,
+    status,
+    ready:Boolean(teacher&&teacher!=='Не назначен'&&trial)
+  };
+}
+
+function shouldSyncLeadUpdateToMathroom(lead,changes={}){
+  const next=leadMathroomState(lead,changes);
+  if(!next.ready)return false;
+
+  // Полное сохранение карточки передаёт teacher/trial явно.
+  if(Object.prototype.hasOwnProperty.call(changes,'trial'))return true;
+
+  // Быстрые действия должны синхронизировать переход в «Пробный»
+  // и переназначение преподавателя уже существующего пробного.
+  if(changes.status==='Пробный')return true;
+  if(Object.prototype.hasOwnProperty.call(changes,'teacher')&&next.status==='Пробный')return true;
+
+  return false;
+}
+
+async function syncLeadUpdateToMathroom(leadId,lead,changes={}){
+  if(!shouldSyncLeadUpdateToMathroom(lead,changes))return null;
+  setSync('Mathroom…');
+  const result=await syncLeadToMathroom(leadId);
+  setSync('Mathroom синхронизирован');
+  return result;
+}
+
 async function bootstrap(){
   const d=await api('bootstrap');
   ['leads','events','students','payments','tasks','lessons','teachers','authLog','groups','groupSlots','groupMembers','groupAttendance'].forEach(k=>STATE[k]=Array.isArray(d[k])?d[k]:[]);
@@ -824,8 +859,25 @@ function leadPayload(l,changes={}){
 async function updateLeadQuick(id,changes,successText='Заявка обновлена'){
   const l=STATE.leads.find(x=>String(x.id)===String(id));if(!l)return;
   const result=await api('updateLead',leadPayload(l,changes));
+
+  let mathroom=null;
+  let mathroomError=null;
+  try{
+    mathroom=await syncLeadUpdateToMathroom(id,l,changes);
+  }catch(e){
+    mathroomError=e;
+  }
+
   await bootstrap();
-  toast(result.warnings?.length?`${successText} · история частично не записана`:successText);
+
+  if(mathroomError){
+    showError(`${successText}, но Mathroom не синхронизирован: ${mathroomError.message}`);
+  }
+  if(mathroom){
+    toast(`${successText} · ученик и пробный добавлены в Mathroom`);
+  }else{
+    toast(result.warnings?.length?`${successText} · история частично не записана`:successText);
+  }
 }
 async function applyBulkLeadChanges(){
   const ids=[...leadSelected];
@@ -835,14 +887,21 @@ async function applyBulkLeadChanges(){
   if(!status&&!teacher){toast('Выберите статус или преподавателя');return}
   const btn=$('#leadBulkApply');
   btn.disabled=true;
-  let done=0,failed=0;
+  let done=0,failed=0,mathroomSynced=0,mathroomFailed=0;
   $('#leadBulkProgress').textContent=`0 / ${ids.length}`;
   for(const id of ids){
     const l=STATE.leads.find(x=>String(x.id)===String(id));
     if(!l)continue;
+    const changes={...(status?{status}:{}),...(teacher?{teacher}:{})};
     try{
-      await api('updateLead',leadPayload(l,{...(status?{status}:{}),...(teacher?{teacher}:{})}));
+      await api('updateLead',leadPayload(l,changes));
       done++;
+      try{
+        const synced=await syncLeadUpdateToMathroom(id,l,changes);
+        if(synced)mathroomSynced++;
+      }catch{
+        mathroomFailed++;
+      }
     }catch(e){failed++}
     $('#leadBulkProgress').textContent=`${done+failed} / ${ids.length}`;
   }
@@ -852,7 +911,14 @@ async function applyBulkLeadChanges(){
   await bootstrap();
   $('#leadBulkProgress').textContent='';
   btn.disabled=false;
-  toast(failed?`Обновлено ${done}, ошибок ${failed}`:`Обновлено заявок: ${done}`);
+  if(mathroomFailed){
+    showError(`CRM обновлена, но Mathroom не синхронизировал заявок: ${mathroomFailed}`);
+  }
+  toast(failed
+    ?`Обновлено ${done}, ошибок ${failed}`
+    :mathroomSynced
+      ?`Обновлено заявок: ${done} · Mathroom: ${mathroomSynced}`
+      :`Обновлено заявок: ${done}`);
 }
 
 ['#search','#status','#teacherFilter','#leadSourceFilter','#leadSort'].forEach(id=>$(id).addEventListener('input',renderLeads));
@@ -1093,24 +1159,29 @@ $('#save').addEventListener('click',async()=>{
   btn.disabled=true;
   btn.textContent='Сохраняем…';
   try{
+    const status=$('#leadStatus').value;
     const result=await api('updateLead',{
       id:leadId,
-      status:$('#leadStatus').value,
+      status,
       teacher,
       trial,
       note:$('#note').value
     });
+
+    let mathroom=null;
+    let mathroomError=null;
+    try{
+      mathroom=await syncLeadUpdateToMathroom(leadId,currentLead,{status,teacher,trial});
+    }catch(syncError){
+      mathroomError=syncError;
+    }
+
     await bootstrap();
     currentLead=STATE.leads.find(l=>String(l.id)===String(leadId));
     if(currentLead)openLead(currentLead.id);
 
-    let mathroom=null;
-    if(teacher&&teacher!=='Не назначен'&&trial){
-      try{
-        mathroom=await syncLeadToMathroom(leadId);
-      }catch(syncError){
-        showError(`Заявка сохранена, но Mathroom не синхронизирован: ${syncError.message}`);
-      }
+    if(mathroomError){
+      showError(`Заявка сохранена, но Mathroom не синхронизирован: ${mathroomError.message}`);
     }
 
     if(mathroom){
@@ -3414,7 +3485,7 @@ $('#authForm').addEventListener('submit',async e=>{
 });
 
 // PWA
-let promptEvt=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();promptEvt=e;$('#install').classList.add('show')});$('#installBtn').onclick=async()=>{if(!promptEvt)return;promptEvt.prompt();await promptEvt.userChoice;promptEvt=null;$('#install').classList.remove('show')};if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=master25-schedule-exact').catch(()=>{}));
+let promptEvt=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();promptEvt=e;$('#install').classList.add('show')});$('#installBtn').onclick=async()=>{if(!promptEvt)return;promptEvt.prompt();await promptEvt.userChoice;promptEvt=null;$('#install').classList.remove('show')};if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=master29-mathroom-sync-all-paths').catch(()=>{}));
 
 // Старт
 (async()=>{

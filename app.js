@@ -505,10 +505,23 @@ const MANUAL_LEAD_PROGRAMS={
 };
 
 function manualLeadName(value,label){
-  const v=String(value||'').trim().replace(/\s+/g,' ');
+  const v=String(value||'')
+    .normalize('NFKC')
+    // Автозаполнение браузера/менеджеры контактов иногда вставляют
+    // zero-width / bidi marks, которые визуально не видны.
+    .replace(/[\u200B-\u200D\u2060\uFEFF]/g,'')
+    .replace(/[\u00A0\u202F]/g,' ')
+    .trim()
+    .replace(/\s+/gu,' ');
+
   if(v.length<2)return {error:`${label}: минимум 2 символа`};
   if(v.length>80)return {error:`${label}: максимум 80 символов`};
-  if(!/^[A-Za-zА-Яа-яЁё][A-Za-zА-Яа-яЁё\\s'’\\-]*$/.test(v))return {error:`${label}: используйте только буквы, пробел, дефис или апостроф`};
+
+  // Unicode-проверка вместо жёсткого списка А-Я/A-Z:
+  // поддерживает кириллицу, латиницу и составные буквы.
+  if(!/^[\p{L}\p{M}][\p{L}\p{M} '\u2019\u02BC\-\u2010\u2011]*$/u.test(v)){
+    return {error:`${label}: используйте только буквы, пробел, дефис или апостроф`};
+  }
   return {value:v};
 }
 function normalizeManualLeadContact(value){
@@ -610,6 +623,11 @@ $('#newLeadContact').addEventListener('blur',()=>{
   const c=normalizeManualLeadContact($('#newLeadContact').value);
   if(c.value)$('#newLeadContact').value=c.value;
 });
+['#newLeadParent','#newLeadStudent'].forEach(id=>$(id).addEventListener('blur',()=>{
+  const field=$(id);
+  const normalized=manualLeadName(field.value,id==='#newLeadParent'?'ФИО родителя':'ФИО ученика');
+  if(normalized.value)field.value=normalized.value;
+}));
 
 $('#newLeadSave').addEventListener('click',async()=>{
   const btn=$('#newLeadSave');

@@ -197,6 +197,48 @@ async function syncLeadUpdateToMathroom(leadId,lead,changes={}){
   return result;
 }
 
+let mathroomReconcileRunning=null;
+async function reconcileReadyTrialLeads({silent=false}={}){
+  if(mathroomReconcileRunning)return mathroomReconcileRunning;
+
+  mathroomReconcileRunning=(async()=>{
+    const ready=STATE.leads.filter(l=>{
+      const teacher=String(l.teacher_id||'').trim();
+      return l.status==='Пробный'
+        && teacher
+        && teacher!=='Не назначен'
+        && Boolean(l.trial_at)
+        && Boolean(l.id);
+    });
+
+    if(!ready.length)return {checked:0,synced:0,failed:0};
+
+    let synced=0,failed=0;
+    for(const lead of ready){
+      try{
+        await syncLeadToMathroom(lead.id);
+        synced++;
+      }catch(e){
+        failed++;
+        console.warn('[Mathroom reconcile]',lead.id,e);
+      }
+    }
+
+    if(!silent){
+      if(failed){
+        showError(`Mathroom: синхронизировано ${synced} из ${ready.length}. Ошибок: ${failed}`);
+      }else if(synced){
+        toast(`Mathroom проверен · пробных синхронизировано: ${synced}`);
+      }
+    }
+
+    return {checked:ready.length,synced,failed};
+  })();
+
+  try{return await mathroomReconcileRunning}
+  finally{mathroomReconcileRunning=null}
+}
+
 async function bootstrap(){
   const d=await api('bootstrap');
   ['leads','events','students','payments','tasks','lessons','teachers','authLog','groups','groupSlots','groupMembers','groupAttendance'].forEach(k=>STATE[k]=Array.isArray(d[k])?d[k]:[]);
@@ -234,6 +276,7 @@ async function refreshData(){
   if(btn){btn.disabled=true;btn.classList.add('loading');}
   try{
     await bootstrap();
+    await reconcileReadyTrialLeads();
 
     if(leadWasOpen && leadId){
       const exists=STATE.leads.some(l=>String(l.id)===String(leadId));
@@ -3610,14 +3653,14 @@ document.addEventListener('click',async e=>{
 
 // ---------- Авторизация ----------
 $('#authForm').addEventListener('submit',async e=>{
-  e.preventDefault();const err=$('#authError');err.hidden=true;try{const d=await api('login',{username:$('#authUser').value.trim(),password:$('#authPassword').value},false);token=d.token;sessionStorage.setItem(SESSION_KEY,token);$('#authPassword').value='';document.body.classList.add('is-authenticated');$('#authOverlay').style.display='none';await bootstrap();toast('Добро пожаловать')}catch(ex){err.textContent=ex.message;err.hidden=false}
+  e.preventDefault();const err=$('#authError');err.hidden=true;try{const d=await api('login',{username:$('#authUser').value.trim(),password:$('#authPassword').value},false);token=d.token;sessionStorage.setItem(SESSION_KEY,token);$('#authPassword').value='';document.body.classList.add('is-authenticated');$('#authOverlay').style.display='none';await bootstrap();await reconcileReadyTrialLeads();toast('Добро пожаловать')}catch(ex){err.textContent=ex.message;err.hidden=false}
 });
 
 // PWA
-let promptEvt=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();promptEvt=e;$('#install').classList.add('show')});$('#installBtn').onclick=async()=>{if(!promptEvt)return;promptEvt.prompt();await promptEvt.userChoice;promptEvt=null;$('#install').classList.remove('show')};if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=master29-mathroom-sync-all-paths').catch(()=>{}));
+let promptEvt=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();promptEvt=e;$('#install').classList.add('show')});$('#installBtn').onclick=async()=>{if(!promptEvt)return;promptEvt.prompt();await promptEvt.userChoice;promptEvt=null;$('#install').classList.remove('show')};if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=master33-reconcile-trials').catch(()=>{}));
 
 // Старт
 (async()=>{
   const hash=location.hash.slice(1);showPage(['today','leads','calendar','students','groups','teachers','finance','stats','settings'].includes(hash)?hash:'today');
-  if(token){try{document.body.classList.add('is-authenticated');$('#authOverlay').style.display='none';await bootstrap()}catch(e){showError(e.message)}}
+  if(token){try{document.body.classList.add('is-authenticated');$('#authOverlay').style.display='none';await bootstrap();await reconcileReadyTrialLeads()}catch(e){showError(e.message)}}
 })();

@@ -1,4 +1,5 @@
 const API_URL = 'https://functions.yandexcloud.net/d4ebvaiffdtsos840t16';
+const MATHROOM_SYNC_URL = 'https://zuemhjhcgxzjivxvucbp.supabase.co/functions/v1/crm-sync-trial';
 const MOSCOW_TZ = 'Europe/Moscow';
 const TEACHERS = ['Егор','Миша','Иван','Никита'];
 const SESSION_KEY = 'kotomatika_crm_session_v1';
@@ -137,6 +138,30 @@ async function api(action, payload={}, useAuth=true){
     if(mutation) ACTIVE_MUTATIONS.delete(action);
   }
 }
+
+async function syncLeadToMathroom(leadId){
+  if(!token) throw new Error('CRM-сессия не найдена');
+  let r;
+  try{
+    r=await fetch(MATHROOM_SYNC_URL,{
+      method:'POST',
+      mode:'cors',
+      cache:'no-store',
+      headers:{'Content-Type':'application/json','Accept':'application/json'},
+      body:JSON.stringify({sessionToken:token,leadId:String(leadId)})
+    });
+  }catch{
+    throw new Error('Не удалось связаться с Mathroom');
+  }
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok||!d.ok){
+    const base=d.error||`Ошибка синхронизации Mathroom: ${r.status}`;
+    const details=d.details?String(d.details).slice(0,700):'';
+    throw new Error(details?`${base}: ${details}`:base);
+  }
+  return d;
+}
+
 async function bootstrap(){
   const d=await api('bootstrap');
   ['leads','events','students','payments','tasks','lessons','teachers','authLog','groups','groupSlots','groupMembers','groupAttendance'].forEach(k=>STATE[k]=Array.isArray(d[k])?d[k]:[]);
@@ -560,6 +585,8 @@ $('#newLeadSave').addEventListener('click',async()=>{
   btn.disabled=true;
   btn.textContent='Создаю…';
   try{
+    const teacher=$('#newLeadTeacher').value;
+    const trialValue=$('#newLeadTrial').value;
     const result=await api('createLead',{
       parentName:valid.parentName,
       studentName:valid.studentName,
@@ -568,14 +595,24 @@ $('#newLeadSave').addEventListener('click',async()=>{
       goal:valid.goal,
       source:$('#newLeadSource').value,
       status:$('#newLeadStatus').value,
-      teacher:$('#newLeadTeacher').value,
-      trial:inputToDisplay($('#newLeadTrial').value),
+      teacher,
+      trial:inputToDisplay(trialValue),
       clientComment:$('#newLeadClientComment').value.trim(),
       managerNote:$('#newLeadManagerNote').value.trim()
     });
+
+    let mathroom=null;
+    if(result.id&&teacher&&teacher!=='Не назначен'&&trialValue){
+      try{
+        mathroom=await syncLeadToMathroom(result.id);
+      }catch(syncError){
+        showError(`Заявка создана, но Mathroom не синхронизирован: ${syncError.message}`);
+      }
+    }
+
     closeModals();
     await bootstrap();
-    toast('Заявка создана');
+    toast(mathroom?'Заявка создана · ученик и пробный добавлены в Mathroom':'Заявка создана');
     if(result.id)openLead(result.id);
   }catch(e){
     setLeadFormError(e.message);
@@ -1050,20 +1087,37 @@ $$('[data-q]').forEach(b=>b.addEventListener('click',()=>{$('#leadStatus').value
 $('#save').addEventListener('click',async()=>{
   if(!currentLead)return;
   const btn=$('#save');
+  const leadId=currentLead.id;
+  const teacher=$('#teacher').value;
+  const trial=$('#trial').value;
   btn.disabled=true;
   btn.textContent='Сохраняем…';
   try{
     const result=await api('updateLead',{
-      id:currentLead.id,
+      id:leadId,
       status:$('#leadStatus').value,
-      teacher:$('#teacher').value,
-      trial:$('#trial').value,
+      teacher,
+      trial,
       note:$('#note').value
     });
     await bootstrap();
-    currentLead=STATE.leads.find(l=>String(l.id)===String(currentLead.id));
+    currentLead=STATE.leads.find(l=>String(l.id)===String(leadId));
     if(currentLead)openLead(currentLead.id);
-    toast(result.warnings?.length?'Заявка сохранена, история обновилась не полностью':'Заявка сохранена');
+
+    let mathroom=null;
+    if(teacher&&teacher!=='Не назначен'&&trial){
+      try{
+        mathroom=await syncLeadToMathroom(leadId);
+      }catch(syncError){
+        showError(`Заявка сохранена, но Mathroom не синхронизирован: ${syncError.message}`);
+      }
+    }
+
+    if(mathroom){
+      toast(`Заявка сохранена · Mathroom: ${mathroom.teacher}, пробный создан`);
+    }else{
+      toast(result.warnings?.length?'Заявка сохранена, история обновилась не полностью':'Заявка сохранена');
+    }
   }catch(e){
     showError(e.message);
   }finally{

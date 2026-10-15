@@ -1,5 +1,5 @@
-const C='kotomatika-crm-master-v31-phone-validation';
-const A=['./','./index.html','./styles.css?v=master28-lead-modal-scroll','./app.js?v=master31-phone-validation','./manifest.webmanifest','./assets/icon-192.png','./assets/icon-512.png'];
+const C='kotomatika-crm-master-v32-create-sync-id';
+const A=['./','./index.html','./styles.css?v=master28-lead-modal-scroll','./app.js?v=master32-create-sync-id','./manifest.webmanifest','./assets/icon-192.png','./assets/icon-512.png'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(C).then(c=>c.addAll(A)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==C).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
 self.addEventListener('fetch',e=>{

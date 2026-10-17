@@ -3478,7 +3478,9 @@ function renderSettings(){
     const t=STATE.teachers.find(x=>x.name===name)||{};
     const account=teacherMathroomAccount(name);
     const accessState=account?.email
-      ? `<span class="mathroom-access-status active">● Доступ создан</span>`
+      ? (account.accessEnabled===false
+          ? `<span class="mathroom-access-status disabled">● Доступ отключён</span>`
+          : `<span class="mathroom-access-status active">● Доступ создан</span>`)
       : `<span class="mathroom-access-status">○ Нет доступа</span>`;
     return `<div class="teacher-setting teacher-setting-v2" data-teacher-row="${esc(t.id||name.toLowerCase())}" data-teacher-name="${esc(name)}">
       <div class="teacher-setting-title"><span>${esc(name.charAt(0))}</span><div><b>${esc(name)}</b><small>${accessState}</small></div></div>
@@ -3503,6 +3505,7 @@ function renderSettings(){
           <div class="mathroom-access-actions">
             <button type="button" class="mathroom-access-save" data-mathroom-save-email>${account?.email?'Сохранить email':'Создать доступ'}</button>
             <button type="button" class="mathroom-access-password" data-mathroom-reset-password ${account?.email?'':'disabled'}>↻ Новый пароль</button>
+            ${account?.email?`<button type="button" class="mathroom-access-toggle ${account.accessEnabled===false?'enable':'disable'}" data-mathroom-toggle-access data-enabled="${account.accessEnabled===false?'false':'true'}">${account.accessEnabled===false?'Включить доступ':'Отключить доступ'}</button>`:''}
           </div>
         </div>
         <div class="mathroom-password-box" data-mathroom-password-box hidden></div>
@@ -3804,6 +3807,32 @@ document.addEventListener('click',async e=>{
     finally{resetPassword.disabled=false;resetPassword.textContent=old}
     return;
   }
+  const toggleAccess=e.target.closest('[data-mathroom-toggle-access]');if(toggleAccess){
+    const row=toggleAccess.closest('[data-teacher-row]');
+    const teacherKey=row?.dataset.teacherName||'';
+    const currentlyEnabled=toggleAccess.dataset.enabled!=='false';
+    const enabled=!currentlyEnabled;
+    if(!teacherKey)return;
+    const question=enabled
+      ? `Вернуть «${teacherKey}» доступ к Mathroom? Его существующий email и пароль снова будут работать.`
+      : `Отключить «${teacherKey}» доступ к Mathroom? Ученики, уроки, доски и история останутся на месте.`;
+    if(!window.confirm(question))return;
+    const old=toggleAccess.textContent;toggleAccess.disabled=true;toggleAccess.textContent=enabled?'Включаю…':'Отключаю…';
+    try{
+      const d=await mathroomAccessApi('toggle_access',{teacherKey,enabled});
+      if(d.account){
+        const rest=(STATE.mathroomAccounts||[]).filter(x=>String(x.teacherKey)!==teacherKey);
+        STATE.mathroomAccounts=[...rest,d.account];
+      }
+      renderSettings();
+      toast(enabled?'Доступ Mathroom включён':'Доступ Mathroom отключён');
+    }catch(err){showError(err.message)}
+    finally{
+      const btn=document.querySelector(`[data-teacher-name="${CSS.escape(teacherKey)}"] [data-mathroom-toggle-access]`);
+      if(btn){btn.disabled=false;if(!btn.textContent)btn.textContent=old}
+    }
+    return;
+  }
   const done=e.target.closest('[data-lesson-done]');if(done){try{await api('updateLessonStatus',{id:done.dataset.lessonDone,status:'Проведено'});await bootstrap();if(currentStudent)openStudent(currentStudent.id);toast('Занятие отмечено проведённым')}catch(err){showError(err.message)}return}
 });
 document.addEventListener('change',async e=>{
@@ -3887,7 +3916,7 @@ $('#authForm').addEventListener('submit',async e=>{
 });
 
 // PWA
-let promptEvt=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();promptEvt=e;$('#install').classList.add('show')});$('#installBtn').onclick=async()=>{if(!promptEvt)return;promptEvt.prompt();await promptEvt.userChoice;promptEvt=null;$('#install').classList.remove('show')};if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=master36-mathroom-access').catch(()=>{}));
+let promptEvt=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();promptEvt=e;$('#install').classList.add('show')});$('#installBtn').onclick=async()=>{if(!promptEvt)return;promptEvt.prompt();await promptEvt.userChoice;promptEvt=null;$('#install').classList.remove('show')};if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=master37-mathroom-access-toggle').catch(()=>{}));
 
 // Старт
 (async()=>{

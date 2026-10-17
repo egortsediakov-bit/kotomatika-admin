@@ -2844,3 +2844,108 @@ table tbody tr:hover{
     grid-template-columns:1fr;
   }
 }
+
+
+/* MASTER v38 — multi-teacher audit */
+.mathroom-account-stats{
+  display:grid;
+  grid-template-columns:140px 140px minmax(210px,1fr);
+  gap:7px;
+  margin:0 0 11px 5px;
+}
+.mathroom-account-stats>div{
+  min-height:58px;
+  padding:9px 11px;
+  display:grid;
+  align-content:center;
+  gap:2px;
+  border:1px solid #ece9e5;
+  border-radius:11px;
+  background:#fff;
+}
+.mathroom-account-stats>div:first-child{
+  border-color:#ffd3bf;
+  background:#fff7f2;
+}
+.mathroom-account-stats b{
+  color:#17191c;
+  font-size:14px;
+  line-height:1.15;
+}
+.mathroom-account-stats>div:first-child b{
+  color:#f35a16;
+}
+.mathroom-account-stats small{
+  color:#8b929a;
+  font-size:8px;
+  line-height:1.35;
+}
+.mathroom-account-stats .next b{
+  font-size:11px;
+}
+.mathroom-access-audit{
+  display:grid;
+  gap:7px;
+  margin-top:12px;
+}
+.mathroom-audit-row{
+  min-height:60px;
+  display:grid;
+  grid-template-columns:10px minmax(0,1fr) auto;
+  align-items:center;
+  gap:11px;
+  padding:9px 11px;
+  border:1px solid #e8e8e5;
+  border-radius:12px;
+  background:#fff;
+}
+.mathroom-audit-mark{
+  width:9px;height:9px;
+  border-radius:50%;
+  background:#aeb4bb;
+  box-shadow:0 0 0 5px rgba(174,180,187,.11);
+}
+.mathroom-audit-row.ok .mathroom-audit-mark{
+  background:#f35a16;
+  box-shadow:0 0 0 5px rgba(243,90,22,.10);
+}
+.mathroom-audit-row.danger .mathroom-audit-mark{
+  background:#bf4329;
+  box-shadow:0 0 0 5px rgba(191,67,41,.09);
+}
+.mathroom-audit-main{
+  min-width:0;
+  display:grid;
+  gap:3px;
+}
+.mathroom-audit-main b{
+  color:#17191c;
+  font-size:10px;
+}
+.mathroom-audit-main small{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:#818891;
+  font-size:8px;
+}
+.mathroom-audit-row time{
+  color:#8d949c;
+  font-size:8px;
+  white-space:nowrap;
+}
+@media(max-width:760px){
+  .mathroom-account-stats{
+    grid-template-columns:1fr 1fr;
+    margin-left:0;
+  }
+  .mathroom-account-stats .next{
+    grid-column:1/-1;
+  }
+  .mathroom-audit-row{
+    grid-template-columns:10px 1fr;
+  }
+  .mathroom-audit-row time{
+    grid-column:2;
+  }
+}

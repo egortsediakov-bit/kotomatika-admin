@@ -8,7 +8,7 @@ const SESSION_KEY = 'kotomatika_crm_session_v1';
 
 const STATE = {
   leads: [], events: [], students: [], payments: [], tasks: [], lessons: [], teachers: [], authLog: [], groups: [], groupSlots: [], groupMembers: [], groupAttendance: [],
-  features: {}, session: {}, warnings: [], diagnostics: null, mathroomAccounts: []
+  features: {}, session: {}, warnings: [], diagnostics: null, mathroomAccounts: [], mathroomAccessAudit: []
 };
 let token = sessionStorage.getItem(SESSION_KEY) || '';
 let currentLead = null;
@@ -170,6 +170,7 @@ async function loadMathroomAccess({silent=false}={}){
   try{
     const d=await mathroomAccessApi('list');
     STATE.mathroomAccounts=Array.isArray(d.accounts)?d.accounts:[];
+    STATE.mathroomAccessAudit=Array.isArray(d.audit)?d.audit:[];
     renderSettings();
     return STATE.mathroomAccounts;
   }finally{
@@ -3482,6 +3483,9 @@ function renderSettings(){
           ? `<span class="mathroom-access-status disabled">● Доступ отключён</span>`
           : `<span class="mathroom-access-status active">● Доступ создан</span>`)
       : `<span class="mathroom-access-status">○ Нет доступа</span>`;
+    const nextLessonMeta=account?.nextLessonAt
+      ? `${shortFmt(account.nextLessonAt)}${account?.nextLessonStudent?` · ${esc(account.nextLessonStudent)}`:''}`
+      : 'Нет ближайшего урока';
     return `<div class="teacher-setting teacher-setting-v2" data-teacher-row="${esc(t.id||name.toLowerCase())}" data-teacher-name="${esc(name)}">
       <div class="teacher-setting-title"><span>${esc(name.charAt(0))}</span><div><b>${esc(name)}</b><small>${accessState}</small></div></div>
       <div class="teacher-setting-base">
@@ -3494,6 +3498,11 @@ function renderSettings(){
         <div class="mathroom-access-head">
           <div><span>Mathroom</span><b>Доступ преподавателя</b><small>Вход по email и автоматически созданному паролю.</small></div>
           ${account?.lastSignInAt?`<time>Последний вход: ${fmt(account.lastSignInAt)}</time>`:''}
+        </div>
+        <div class="mathroom-account-stats">
+          <div><b>${Number(account?.activeStudentCount||0)}</b><small>активных учеников</small></div>
+          <div><b>${Number(account?.upcomingLessonCount||0)}</b><small>занятий впереди</small></div>
+          <div class="next"><b>${account?.nextLessonAt?shortFmt(account.nextLessonAt):'—'}</b><small>${esc(nextLessonMeta)}</small></div>
         </div>
         <div class="mathroom-access-controls">
           <label>Email для входа
@@ -3513,6 +3522,29 @@ function renderSettings(){
       </div>
     </div>`;
   }).join('');
+
+  const accessAuditLabels={
+    access_created:'Доступ создан',
+    email_changed:'Email изменён',
+    password_reset:'Пароль изменён',
+    access_disabled:'Доступ отключён',
+    access_enabled:'Доступ включён'
+  };
+  const accessAudit=STATE.mathroomAccessAudit||[];
+  const auditHost=$('#mathroomAccessAudit');
+  const auditCaption=$('#mathroomAccessAuditCaption');
+  if(auditCaption)auditCaption.textContent=accessAudit.length?`${accessAudit.length} последних действий`:'Событий пока нет';
+  if(auditHost){
+    auditHost.innerHTML=accessAudit.length?accessAudit.map(row=>{
+      const action=accessAuditLabels[row.action]||row.action||'Изменение доступа';
+      const tone=row.action==='access_disabled'?'danger':row.action==='access_enabled'||row.action==='access_created'?'ok':'neutral';
+      return `<div class="mathroom-audit-row ${tone}">
+        <span class="mathroom-audit-mark"></span>
+        <div class="mathroom-audit-main"><b>${esc(action)}</b><small>${esc(row.teacher_key||'Преподаватель')}${row.email?` · ${esc(row.email)}`:''}</small></div>
+        <time>${fmt(row.created_at)}</time>
+      </div>`;
+    }).join(''):empty('Действий с доступом Mathroom пока не было');
+  }
 }
 
 async function runSystemDiagnostics(){
@@ -3916,7 +3948,7 @@ $('#authForm').addEventListener('submit',async e=>{
 });
 
 // PWA
-let promptEvt=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();promptEvt=e;$('#install').classList.add('show')});$('#installBtn').onclick=async()=>{if(!promptEvt)return;promptEvt.prompt();await promptEvt.userChoice;promptEvt=null;$('#install').classList.remove('show')};if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=master37-mathroom-access-toggle').catch(()=>{}));
+let promptEvt=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();promptEvt=e;$('#install').classList.add('show')});$('#installBtn').onclick=async()=>{if(!promptEvt)return;promptEvt.prompt();await promptEvt.userChoice;promptEvt=null;$('#install').classList.remove('show')};if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=master38-multiteacher-audit').catch(()=>{}));
 
 // Старт
 (async()=>{

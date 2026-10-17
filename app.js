@@ -3484,7 +3484,7 @@ function renderSettings(){
           : `<span class="mathroom-access-status active">● Доступ создан</span>`)
       : `<span class="mathroom-access-status">○ Нет доступа</span>`;
     const nextLessonMeta=account?.nextLessonAt
-      ? `${shortFmt(account.nextLessonAt)}${account?.nextLessonStudent?` · ${esc(account.nextLessonStudent)}`:''}`
+      ? (account?.nextLessonStudent?`Следующий · ${esc(account.nextLessonStudent)}`:'Следующий урок')
       : 'Нет ближайшего урока';
     return `<div class="teacher-setting teacher-setting-v2" data-teacher-row="${esc(t.id||name.toLowerCase())}" data-teacher-name="${esc(name)}">
       <div class="teacher-setting-title"><span>${esc(name.charAt(0))}</span><div><b>${esc(name)}</b><small>${accessState}</small></div></div>
@@ -3814,11 +3814,7 @@ document.addEventListener('click',async e=>{
     const old=accessSave.textContent;accessSave.disabled=true;accessSave.textContent='Сохраняю…';
     try{
       const d=await mathroomAccessApi('save_access',{teacherKey,email});
-      if(d.account){
-        const rest=(STATE.mathroomAccounts||[]).filter(x=>String(x.teacherKey)!==teacherKey);
-        STATE.mathroomAccounts=[...rest,d.account];
-      }
-      renderSettings();
+      await loadMathroomAccess({silent:true});
       if(d.password)mathroomPasswordCard(teacherKey,d.password,d.account?.email||email);
       toast(d.created?'Доступ Mathroom создан':'Email Mathroom обновлён');
     }catch(err){showError(err.message)}
@@ -3833,7 +3829,8 @@ document.addEventListener('click',async e=>{
     const old=resetPassword.textContent;resetPassword.disabled=true;resetPassword.textContent='Генерирую…';
     try{
       const d=await mathroomAccessApi('reset_password',{teacherKey});
-      mathroomPasswordCard(teacherKey,d.password,d.account?.email||'');
+      await loadMathroomAccess({silent:true});
+      mathroomPasswordCard(teacherKey,d.password,d.account?.email||teacherMathroomAccount(teacherKey)?.email||'');
       toast('Новый пароль создан');
     }catch(err){showError(err.message)}
     finally{resetPassword.disabled=false;resetPassword.textContent=old}
@@ -3852,11 +3849,7 @@ document.addEventListener('click',async e=>{
     const old=toggleAccess.textContent;toggleAccess.disabled=true;toggleAccess.textContent=enabled?'Включаю…':'Отключаю…';
     try{
       const d=await mathroomAccessApi('toggle_access',{teacherKey,enabled});
-      if(d.account){
-        const rest=(STATE.mathroomAccounts||[]).filter(x=>String(x.teacherKey)!==teacherKey);
-        STATE.mathroomAccounts=[...rest,d.account];
-      }
-      renderSettings();
+      await loadMathroomAccess({silent:true});
       toast(enabled?'Доступ Mathroom включён':'Доступ Mathroom отключён');
     }catch(err){showError(err.message)}
     finally{

@@ -1,13 +1,14 @@
 const API_URL = 'https://functions.yandexcloud.net/d4ebvaiffdtsos840t16';
 const MATHROOM_SYNC_URL = 'https://zuemhjhcgxzjivxvucbp.supabase.co/functions/v1/crm-sync-trial';
 const MATHROOM_STATUS_URL = 'https://zuemhjhcgxzjivxvucbp.supabase.co/functions/v1/crm-trial-status';
+const MATHROOM_ACCESS_URL = 'https://zuemhjhcgxzjivxvucbp.supabase.co/functions/v1/mathroom-access-admin';
 const MOSCOW_TZ = 'Europe/Moscow';
 const TEACHERS = ['Егор','Миша','Иван','Никита'];
 const SESSION_KEY = 'kotomatika_crm_session_v1';
 
 const STATE = {
   leads: [], events: [], students: [], payments: [], tasks: [], lessons: [], teachers: [], authLog: [], groups: [], groupSlots: [], groupMembers: [], groupAttendance: [],
-  features: {}, session: {}, warnings: [], diagnostics: null
+  features: {}, session: {}, warnings: [], diagnostics: null, mathroomAccounts: []
 };
 let token = sessionStorage.getItem(SESSION_KEY) || '';
 let currentLead = null;
@@ -138,6 +139,55 @@ async function api(action, payload={}, useAuth=true){
   }finally{
     if(mutation) ACTIVE_MUTATIONS.delete(action);
   }
+}
+
+async function mathroomAccessApi(action,payload={}){
+  if(!token)throw new Error('CRM-сессия не найдена');
+  let r;
+  try{
+    r=await fetch(MATHROOM_ACCESS_URL,{
+      method:'POST',
+      mode:'cors',
+      cache:'no-store',
+      headers:{'Content-Type':'application/json','Accept':'application/json'},
+      body:JSON.stringify({sessionToken:token,action,...payload})
+    });
+  }catch{
+    throw new Error('Не удалось связаться с управлением доступом Mathroom');
+  }
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok||!d.ok){
+    const base=d.error||`Ошибка доступа Mathroom: ${r.status}`;
+    const details=d.details?String(d.details).slice(0,700):'';
+    throw new Error(details?`${base}: ${details}`:base);
+  }
+  return d;
+}
+async function loadMathroomAccess({silent=false}={}){
+  if(!token)return [];
+  const host=$('#teacherSettings');
+  if(host&&!silent)host.classList.add('loading-access');
+  try{
+    const d=await mathroomAccessApi('list');
+    STATE.mathroomAccounts=Array.isArray(d.accounts)?d.accounts:[];
+    renderSettings();
+    return STATE.mathroomAccounts;
+  }finally{
+    if(host)host.classList.remove('loading-access');
+  }
+}
+function teacherMathroomAccount(name){
+  return (STATE.mathroomAccounts||[]).find(x=>String(x.teacherKey||x.displayName||'')===String(name))||null;
+}
+function mathroomPasswordCard(teacherKey,password,email){
+  const row=document.querySelector(`[data-teacher-row][data-teacher-name="${CSS.escape(String(teacherKey))}"]`);
+  if(!row)return;
+  const box=row.querySelector('[data-mathroom-password-box]');
+  if(!box)return;
+  box.hidden=false;
+  box.innerHTML=`<div class="mathroom-password-head"><span>Новый пароль</span><b>Показывается только сейчас</b></div>
+    <div class="mathroom-password-value"><code>${esc(password)}</code><button type="button" data-copy-value="${esc(password)}">Копировать</button></div>
+    <small>${email?esc(email)+' · ':''}Передай пароль преподавателю безопасным способом. После закрытия страницы посмотреть его снова нельзя — можно только сгенерировать новый.</small>`;
 }
 
 async function syncLeadToMathroom(leadId){
@@ -349,6 +399,7 @@ async function bootstrap(){
   STATE.features=d.features||{}; STATE.session=d.session||{}; STATE.warnings=Array.isArray(d.warnings)?d.warnings:[];
   if(d.system) STATE.system=d.system;
   renderAll();
+  if($('#page-settings')?.classList.contains('active')) loadMathroomAccess({silent:true}).catch(e=>showError(e.message));
   const p=moscowParts(new Date().toISOString());
   if($('#refreshTime')&&p) $('#refreshTime').textContent=`обновлено ${p.hour}:${p.minute}`;
   if(p) setSync(`Обновлено ${p.hour}:${p.minute}`);
@@ -359,6 +410,7 @@ function showPage(name){
   $$('[data-page]').forEach(b=>b.classList.toggle('active',b.dataset.page===name));
   location.hash=name;
   if(name==='calendar')renderCrmCalendar();
+  if(name==='settings'&&token)loadMathroomAccess({silent:true}).catch(e=>showError(e.message));
 }
 $$('[data-page]').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.page)));
 $$('[data-jump]').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.jump)));
@@ -3424,12 +3476,38 @@ function renderSettings(){
 
   $('#teacherSettings').innerHTML=TEACHERS.map(name=>{
     const t=STATE.teachers.find(x=>x.name===name)||{};
-    return `<div class="teacher-setting" data-teacher-row="${esc(t.id||name.toLowerCase())}">
-      <b>${esc(name)}</b>
-      <label>Недельная ёмкость<input data-capacity type="number" value="${Number(t.weekly_capacity||20)}" min="0" max="100"></label>
-      <label>Telegram<input data-telegram value="${esc(t.telegram||'')}" placeholder="@username"></label>
-      <label class="inline-check"><input data-active type="checkbox" ${t.active===false?'':'checked'}> Активен</label>
-      <button data-save-teacher="${esc(t.id||name.toLowerCase())}">Сохранить</button>
+    const account=teacherMathroomAccount(name);
+    const accessState=account?.email
+      ? `<span class="mathroom-access-status active">● Доступ создан</span>`
+      : `<span class="mathroom-access-status">○ Нет доступа</span>`;
+    return `<div class="teacher-setting teacher-setting-v2" data-teacher-row="${esc(t.id||name.toLowerCase())}" data-teacher-name="${esc(name)}">
+      <div class="teacher-setting-title"><span>${esc(name.charAt(0))}</span><div><b>${esc(name)}</b><small>${accessState}</small></div></div>
+      <div class="teacher-setting-base">
+        <label>Недельная ёмкость<input data-capacity type="number" value="${Number(t.weekly_capacity||20)}" min="0" max="100"></label>
+        <label>Telegram<input data-telegram value="${esc(t.telegram||'')}" placeholder="@username"></label>
+        <label class="inline-check"><input data-active type="checkbox" ${t.active===false?'':'checked'}> Активен</label>
+        <button class="teacher-save-main" data-save-teacher="${esc(t.id||name.toLowerCase())}">Сохранить</button>
+      </div>
+      <div class="mathroom-access-panel">
+        <div class="mathroom-access-head">
+          <div><span>Mathroom</span><b>Доступ преподавателя</b><small>Вход по email и автоматически созданному паролю.</small></div>
+          ${account?.lastSignInAt?`<time>Последний вход: ${fmt(account.lastSignInAt)}</time>`:''}
+        </div>
+        <div class="mathroom-access-controls">
+          <label>Email для входа
+            <div class="mathroom-email-control">
+              <input data-mathroom-email type="email" value="${esc(account?.email||'')}" placeholder="teacher@example.com" autocomplete="off">
+              ${account?.email?`<button type="button" class="icon-copy" data-copy-value="${esc(account.email)}" title="Скопировать email">⧉</button>`:''}
+            </div>
+          </label>
+          <div class="mathroom-access-actions">
+            <button type="button" class="mathroom-access-save" data-mathroom-save-email>${account?.email?'Сохранить email':'Создать доступ'}</button>
+            <button type="button" class="mathroom-access-password" data-mathroom-reset-password ${account?.email?'':'disabled'}>↻ Новый пароль</button>
+          </div>
+        </div>
+        <div class="mathroom-password-box" data-mathroom-password-box hidden></div>
+        <div class="mathroom-access-note"><span>i</span><p>Пароль генерируется на сервере. В базе он хранится только в виде безопасного хэша Supabase Auth; после создания мы показываем его один раз для копирования.</p></div>
+      </div>
     </div>`;
   }).join('');
 }
@@ -3688,6 +3766,44 @@ document.addEventListener('click',async e=>{
   const student=e.target.closest('[data-open-student]');if(student){e.preventDefault();openStudent(student.dataset.openStudent);return}
   const pay=e.target.closest('[data-payment-for]');if(pay){e.preventDefault();openPaymentModal(pay.dataset.paymentFor);return}
   const teacherSave=e.target.closest('[data-save-teacher]');if(teacherSave){const row=teacherSave.closest('[data-teacher-row]');try{await api('updateTeacher',{id:teacherSave.dataset.saveTeacher,weeklyCapacity:cleanPositiveInt(row.querySelector('[data-capacity]').value,20),telegram:row.querySelector('[data-telegram]').value,active:row.querySelector('[data-active]').checked,notes:''});await bootstrap();toast('Настройки преподавателя сохранены')}catch(err){showError(err.message)}return}
+  const copyValue=e.target.closest('[data-copy-value]');if(copyValue){
+    const value=copyValue.dataset.copyValue||'';
+    try{await navigator.clipboard.writeText(value);toast('Скопировано')}catch{window.prompt('Скопируйте значение:',value)}
+    return;
+  }
+  const accessSave=e.target.closest('[data-mathroom-save-email]');if(accessSave){
+    const row=accessSave.closest('[data-teacher-row]');
+    const teacherKey=row?.dataset.teacherName||'';
+    const email=cleanText(row?.querySelector('[data-mathroom-email]')?.value).toLowerCase();
+    if(!email){showError('Укажите email для входа в Mathroom');return}
+    const old=accessSave.textContent;accessSave.disabled=true;accessSave.textContent='Сохраняю…';
+    try{
+      const d=await mathroomAccessApi('save_access',{teacherKey,email});
+      if(d.account){
+        const rest=(STATE.mathroomAccounts||[]).filter(x=>String(x.teacherKey)!==teacherKey);
+        STATE.mathroomAccounts=[...rest,d.account];
+      }
+      renderSettings();
+      if(d.password)mathroomPasswordCard(teacherKey,d.password,d.account?.email||email);
+      toast(d.created?'Доступ Mathroom создан':'Email Mathroom обновлён');
+    }catch(err){showError(err.message)}
+    finally{const btn=document.querySelector(`[data-teacher-name="${CSS.escape(teacherKey)}"] [data-mathroom-save-email]`);if(btn){btn.disabled=false;if(!btn.textContent)btn.textContent=old}}
+    return;
+  }
+  const resetPassword=e.target.closest('[data-mathroom-reset-password]');if(resetPassword){
+    const row=resetPassword.closest('[data-teacher-row]');
+    const teacherKey=row?.dataset.teacherName||'';
+    if(!teacherKey)return;
+    if(!window.confirm(`Сгенерировать новый пароль Mathroom для «${teacherKey}»? Старый пароль сразу перестанет работать.`))return;
+    const old=resetPassword.textContent;resetPassword.disabled=true;resetPassword.textContent='Генерирую…';
+    try{
+      const d=await mathroomAccessApi('reset_password',{teacherKey});
+      mathroomPasswordCard(teacherKey,d.password,d.account?.email||'');
+      toast('Новый пароль создан');
+    }catch(err){showError(err.message)}
+    finally{resetPassword.disabled=false;resetPassword.textContent=old}
+    return;
+  }
   const done=e.target.closest('[data-lesson-done]');if(done){try{await api('updateLessonStatus',{id:done.dataset.lessonDone,status:'Проведено'});await bootstrap();if(currentStudent)openStudent(currentStudent.id);toast('Занятие отмечено проведённым')}catch(err){showError(err.message)}return}
 });
 document.addEventListener('change',async e=>{
@@ -3771,7 +3887,7 @@ $('#authForm').addEventListener('submit',async e=>{
 });
 
 // PWA
-let promptEvt=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();promptEvt=e;$('#install').classList.add('show')});$('#installBtn').onclick=async()=>{if(!promptEvt)return;promptEvt.prompt();await promptEvt.userChoice;promptEvt=null;$('#install').classList.remove('show')};if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=master35-trial-attendance').catch(()=>{}));
+let promptEvt=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();promptEvt=e;$('#install').classList.add('show')});$('#installBtn').onclick=async()=>{if(!promptEvt)return;promptEvt.prompt();await promptEvt.userChoice;promptEvt=null;$('#install').classList.remove('show')};if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=master36-mathroom-access').catch(()=>{}));
 
 // Старт
 (async()=>{

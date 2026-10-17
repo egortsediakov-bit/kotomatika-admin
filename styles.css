@@ -2797,3 +2797,50 @@ table tbody tr:hover{
     grid-template-columns:1fr;
   }
 }
+
+
+/* MASTER v37 — reversible Mathroom access */
+.mathroom-access-status.disabled{
+  color:#c84628!important;
+}
+.mathroom-access-toggle{
+  min-height:42px;
+  padding:0 11px;
+  border-radius:10px;
+  font-size:9px;
+  font-weight:900;
+  cursor:pointer;
+  white-space:nowrap;
+}
+.mathroom-access-toggle.disable{
+  border:1px solid #efb8aa;
+  background:#fff8f5;
+  color:#aa3d25;
+}
+.mathroom-access-toggle.disable:hover{
+  border-color:#c84628;
+  background:#fff0eb;
+}
+.mathroom-access-toggle.enable{
+  border:1px solid #f35a16;
+  background:#fff0e8;
+  color:#f35a16;
+}
+.mathroom-access-toggle.enable:hover{
+  background:#f35a16;
+  color:#fff;
+}
+.mathroom-access-toggle:disabled{
+  opacity:.52;
+  cursor:wait;
+}
+@media(max-width:1050px){
+  .mathroom-access-actions{
+    flex-wrap:wrap;
+  }
+}
+@media(max-width:650px){
+  .mathroom-access-actions{
+    grid-template-columns:1fr;
+  }
+}

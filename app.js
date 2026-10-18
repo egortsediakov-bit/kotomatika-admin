@@ -1,5 +1,6 @@
 const API_URL = 'https://functions.yandexcloud.net/d4ebvaiffdtsos840t16';
 const MATHROOM_SYNC_URL = 'https://zuemhjhcgxzjivxvucbp.supabase.co/functions/v1/crm-sync-trial';
+const MATHROOM_TRIAL_SLOT_URL = 'https://zuemhjhcgxzjivxvucbp.supabase.co/functions/v1/crm-check-trial-slot';
 const MATHROOM_STATUS_URL = 'https://zuemhjhcgxzjivxvucbp.supabase.co/functions/v1/crm-trial-status';
 const MATHROOM_ACCESS_URL = 'https://zuemhjhcgxzjivxvucbp.supabase.co/functions/v1/mathroom-access-admin';
 const MOSCOW_TZ = 'Europe/Moscow';
@@ -189,6 +190,26 @@ function mathroomPasswordCard(teacherKey,password,email){
   box.innerHTML=`<div class="mathroom-password-head"><span>Новый пароль</span><b>Показывается только сейчас</b></div>
     <div class="mathroom-password-value"><code>${esc(password)}</code><button type="button" data-copy-value="${esc(password)}">Копировать</button></div>
     <small>${email?esc(email)+' · ':''}Передай пароль преподавателю безопасным способом. После закрытия страницы посмотреть его снова нельзя — можно только сгенерировать новый.</small>`;
+}
+
+async function checkMathroomTrialSlot({teacher,trial,leadId=''}={}){
+  const teacherKey=String(teacher||'').trim();
+  const trialAt=String(trial||'').trim();
+  if(!teacherKey||teacherKey==='Не назначен'||!trialAt)return {available:true};
+  if(!token)throw new Error('CRM-сессия не найдена');
+  let response;
+  try{
+    response=await fetch(MATHROOM_TRIAL_SLOT_URL,{
+      method:'POST',mode:'cors',cache:'no-store',
+      headers:{'Content-Type':'application/json','Accept':'application/json'},
+      body:JSON.stringify({sessionToken:token,teacherKey,trialAt,leadId:String(leadId||'')})
+    });
+  }catch{
+    throw new Error('Не удалось проверить расписание преподавателя в Mathroom');
+  }
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok||!data.ok)throw new Error(data.error||'Выбранное время недоступно');
+  return data;
 }
 
 async function syncLeadToMathroom(leadId){
@@ -918,6 +939,12 @@ $('#newLeadSave').addEventListener('click',async()=>{
     const status=$('#newLeadStatus').value;
     const startedAt=Date.now();
 
+    if(teacher&&teacher!=='Не назначен'&&trial){
+      btn.textContent='Проверяю расписание…';
+      await checkMathroomTrialSlot({teacher,trial});
+      btn.textContent='Создаю…';
+    }
+
     const result=await api('createLead',{
       parentName:valid.parentName,
       studentName:valid.studentName,
@@ -1190,6 +1217,8 @@ function leadPayload(l,changes={}){
 }
 async function updateLeadQuick(id,changes,successText='Заявка обновлена'){
   const l=STATE.leads.find(x=>String(x.id)===String(id));if(!l)return;
+  const next=leadMathroomState(l,changes);
+  if(next.ready&&next.status==='Пробный')await checkMathroomTrialSlot({teacher:next.teacher,trial:next.trial,leadId:id});
   const result=await api('updateLead',leadPayload(l,changes));
 
   let mathroom=null;
@@ -1226,6 +1255,8 @@ async function applyBulkLeadChanges(){
     if(!l)continue;
     const changes={...(status?{status}:{}),...(teacher?{teacher}:{})};
     try{
+      const next=leadMathroomState(l,changes);
+      if(next.ready&&next.status==='Пробный')await checkMathroomTrialSlot({teacher:next.teacher,trial:next.trial,leadId:id});
       await api('updateLead',leadPayload(l,changes));
       done++;
       try{
@@ -1499,6 +1530,11 @@ $('#save').addEventListener('click',async()=>{
   btn.textContent='Сохраняем…';
   try{
     const status=$('#leadStatus').value;
+    if(status==='Пробный'&&teacher&&teacher!=='Не назначен'&&trial){
+      btn.textContent='Проверяю расписание…';
+      await checkMathroomTrialSlot({teacher,trial,leadId});
+      btn.textContent='Сохраняем…';
+    }
     const result=await api('updateLead',{
       id:leadId,
       status,
@@ -3941,7 +3977,7 @@ $('#authForm').addEventListener('submit',async e=>{
 });
 
 // PWA
-let promptEvt=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();promptEvt=e;$('#install').classList.add('show')});$('#installBtn').onclick=async()=>{if(!promptEvt)return;promptEvt.prompt();await promptEvt.userChoice;promptEvt=null;$('#install').classList.remove('show')};if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=master39-multiteacher-hardening-final').catch(()=>{}));
+let promptEvt=null;window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();promptEvt=e;$('#install').classList.add('show')});$('#installBtn').onclick=async()=>{if(!promptEvt)return;promptEvt.prompt();await promptEvt.userChoice;promptEvt=null;$('#install').classList.remove('show')};if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=master40-trial-conflict-check').catch(()=>{}));
 
 // Старт
 (async()=>{

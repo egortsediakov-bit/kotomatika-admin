@@ -1703,6 +1703,39 @@ body.is-authenticated .auth-overlay{display:none}
 .lead-card-meta span{
   background:#f2f2ef;border-radius:999px;padding:4px 6px;color:#777;font-size:7px;font-weight:800
 }
+.lead-kanban-column,
+.lead-kanban-cards,
+.lead-kanban-card{
+  min-width:0;
+}
+.lead-kanban-card{
+  width:100%;
+  max-width:100%;
+  box-sizing:border-box;
+  overflow:hidden;
+}
+.lead-card-top,
+.lead-card-meta,
+.lead-card-footer{
+  min-width:0;
+}
+.lead-card-meta span{
+  max-width:100%;
+}
+.lead-card-meta .lead-source-chip{
+  display:block;
+  flex:1 1 0;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.lead-card-footer>span{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
 .lead-card-event{
   margin-top:7px;border-radius:8px;background:#fff4ec;color:#a64b24;padding:6px;font-size:7px;font-weight:900
 }

@@ -1110,6 +1110,17 @@ function leadNextTaskText(l){
   const late=new Date(t.due_at)<new Date();
   return `${late?'Просрочено':'Задача'} · ${shortFmt(t.due_at)} · ${t.title||'Связаться'}`;
 }
+function leadSourceLabel(source){
+  const raw=String(source||'').trim();
+  if(!raw)return 'Сайт';
+  try{
+    if(/^https?:\/\//i.test(raw)){
+      const u=new URL(raw);
+      return u.hostname.replace(/^www\./,'');
+    }
+  }catch{}
+  return raw.length>34?raw.slice(0,31)+'…':raw;
+}
 function leadKanbanCard(l){
   const p=leadPriority(l),priority=leadPriorityLabel(l);
   const age=leadAgeText(l.created_at);
@@ -1122,7 +1133,7 @@ function leadKanbanCard(l){
     <p>${esc(l.parent_name&&l.student_name?l.parent_name:(l.goal||'Заявка'))}</p>
     <div class="lead-card-meta">
       <span>${esc(l.grade?`${l.grade} класс`:'Класс —')}</span>
-      <span>${esc(l.source||'Сайт')}</span>
+      <span class="lead-source-chip" title="${esc(l.source||'Сайт')}">${esc(leadSourceLabel(l.source))}</span>
     </div>
     ${l.trial_at?`<div class="lead-card-event ${new Date(l.trial_at)<new Date()?'past':''}">◷ ${esc(shortFmt(l.trial_at))}</div>`:''}
     <div class="lead-card-task ${p.overdueTasks.length?'late':''}">${esc(leadNextTaskText(l))}</div>

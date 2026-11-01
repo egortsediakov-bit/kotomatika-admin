@@ -2982,3 +2982,43 @@ table tbody tr:hover{
     grid-column:2;
   }
 }
+
+
+/* ================= MASTER v41 — Kanban overflow fix =================
+   Long source URLs must never widen a card or a kanban column. */
+.lead-kanban-column,
+.lead-kanban-cards,
+.lead-kanban-card{
+  min-width:0!important;
+}
+.lead-kanban-card{
+  width:100%!important;
+  max-width:100%!important;
+  box-sizing:border-box!important;
+  overflow:hidden!important;
+}
+.lead-card-top,
+.lead-card-meta,
+.lead-card-footer{
+  min-width:0!important;
+}
+.lead-card-meta{
+  max-width:100%!important;
+  overflow:hidden!important;
+}
+.lead-card-meta span{
+  min-width:0!important;
+  max-width:100%!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+}
+.lead-card-meta span:nth-child(2){
+  flex:1 1 0!important;
+}
+.lead-card-footer>span{
+  min-width:0!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+}

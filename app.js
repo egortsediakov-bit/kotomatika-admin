@@ -1704,7 +1704,7 @@ function renderStudents(){
 
   const q=($('#studentSearch').value||'').toLowerCase(), status=$('#studentStatusFilter').value, teacher=$('#studentTeacherFilter').value;
   const arr=STATE.students.filter(x=>
-    (!q||[x.student_name,x.parent_name,x.contact,x.program,x.tariff].join(' ').toLowerCase().includes(q))&&
+    (!q||[x.student_name,x.parent_name,x.contact,x.program,x.tariff,x.id].join(" ").toLowerCase().includes(q.replace(/^№\s*/,"")))&&
     (!status||x.status===status)&&(!teacher||x.teacher_id===teacher)&&
     (!studentAttentionOnly||studentAttention(x).attention)
   );

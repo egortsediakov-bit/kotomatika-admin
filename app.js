@@ -3,6 +3,9 @@ const MATHROOM_SYNC_URL = 'https://zuemhjhcgxzjivxvucbp.supabase.co/functions/v1
 const MATHROOM_TRIAL_SLOT_URL = 'https://zuemhjhcgxzjivxvucbp.supabase.co/functions/v1/crm-check-trial-slot';
 const MATHROOM_STATUS_URL = 'https://zuemhjhcgxzjivxvucbp.supabase.co/functions/v1/crm-trial-status';
 const MATHROOM_ACCESS_URL = 'https://zuemhjhcgxzjivxvucbp.supabase.co/functions/v1/mathroom-access-admin';
+// Связь CRM с Mathroom выключена: ни одного запроса к Mathroom/Supabase не отправляется.
+// Чтобы включить обратно, поставьте true.
+const MATHROOM_ENABLED = false;
 const MOSCOW_TZ = 'Europe/Moscow';
 const TEACHERS = ['Егор','Миша','Иван','Никита'];
 const SESSION_KEY = 'kotomatika_crm_session_v1';
@@ -143,6 +146,7 @@ async function api(action, payload={}, useAuth=true){
 }
 
 async function mathroomAccessApi(action,payload={}){
+  if(!MATHROOM_ENABLED)throw new Error('Связь с Mathroom отключена');
   if(!token)throw new Error('CRM-сессия не найдена');
   let r;
   try{
@@ -165,6 +169,7 @@ async function mathroomAccessApi(action,payload={}){
   return d;
 }
 async function loadMathroomAccess({silent=false}={}){
+  if(!MATHROOM_ENABLED)return [];
   if(!token)return [];
   const host=$('#teacherSettings');
   if(host&&!silent)host.classList.add('loading-access');
@@ -193,6 +198,7 @@ function mathroomPasswordCard(teacherKey,password,email){
 }
 
 async function checkMathroomTrialSlot({teacher,trial,leadId=''}={}){
+  if(!MATHROOM_ENABLED)return {available:true};
   const teacherKey=String(teacher||'').trim();
   const trialAt=String(trial||'').trim();
   if(!teacherKey||teacherKey==='Не назначен'||!trialAt)return {available:true};
@@ -213,6 +219,7 @@ async function checkMathroomTrialSlot({teacher,trial,leadId=''}={}){
 }
 
 async function syncLeadToMathroom(leadId){
+  if(!MATHROOM_ENABLED)return null;
   if(!token) throw new Error('CRM-сессия не найдена');
   let r;
   try{
@@ -245,6 +252,7 @@ function sameMinute(a,b){
 }
 
 async function fetchMathroomTrialStates(){
+  if(!MATHROOM_ENABLED)return [];
   if(!token) return [];
   let r;
   try{
@@ -268,6 +276,7 @@ async function fetchMathroomTrialStates(){
 }
 
 async function syncTrialStatusesFromMathroom({silent=true}={}){
+  if(!MATHROOM_ENABLED)return {changed:0,completed:0,deleted:0,rescheduled:0};
   if(!token)return {changed:0,completed:0,deleted:0,rescheduled:0};
   if(mathroomStatusSyncRunning)return mathroomStatusSyncRunning;
 
@@ -332,6 +341,7 @@ async function syncTrialStatusesFromMathroom({silent=true}={}){
 }
 
 function startMathroomStatusPolling(){
+  if(!MATHROOM_ENABLED)return;
   if(mathroomStatusPollTimer)clearInterval(mathroomStatusPollTimer);
   mathroomStatusPollTimer=setInterval(()=>{
     if(!token||document.visibilityState!=='visible')return;
@@ -352,6 +362,7 @@ function leadMathroomState(lead,changes={}){
 }
 
 function shouldSyncLeadUpdateToMathroom(lead,changes={}){
+  if(!MATHROOM_ENABLED)return false;
   const next=leadMathroomState(lead,changes);
   if(!next.ready||next.status!=='Пробный')return false;
 
@@ -375,6 +386,7 @@ async function syncLeadUpdateToMathroom(leadId,lead,changes={}){
 
 let mathroomReconcileRunning=null;
 async function reconcileReadyTrialLeads({silent=false}={}){
+  if(!MATHROOM_ENABLED)return null;
   if(mathroomReconcileRunning)return mathroomReconcileRunning;
 
   mathroomReconcileRunning=(async()=>{
@@ -1085,7 +1097,7 @@ function filteredLeads(){
   const source=$('#leadSourceFilter').value;
   const sort=$('#leadSort').value||'priority';
   const arr=STATE.leads.filter(l=>
-    (!q||[l.parent_name,l.student_name,l.contact,l.goal,l.grade,l.teacher_id,l.source,l.manager_note].join(' ').toLowerCase().includes(q))&&
+    (!q||[l.parent_name,l.student_name,l.contact,l.goal,l.grade,l.teacher_id,l.source,l.manager_note,l.id].join(' ').toLowerCase().includes(q.replace(/^№\s*/,'')))&&
     (!s||l.status===s)&&
     (!teacher||l.teacher_id===teacher)&&
     (!source||(l.source||'Не указан')===source)&&

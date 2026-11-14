@@ -1,0 +1,88 @@
+/* КОТОМАТИКА CRM — доработка под iPhone / приложение на экране «Домой» (2026-11-14)
+   Подключается после styles.css. Меняет только мобильный вид (≤900px). */
+
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{-webkit-tap-highlight-color:transparent}
+button,a,select,summary,[data-page]{touch-action:manipulation}
+.mobile,.more-sheet{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+
+/* Подсказка установки на iPhone (по умолчанию скрыта, показывается скриптом) */
+.ios-install{display:none}
+
+@media(max-width:900px){
+  /* ----- шапка: учитываем «чёлку» и режим приложения ----- */
+  .top{padding-top:env(safe-area-inset-top)}
+  .top .wrap{padding-left:max(14px,env(safe-area-inset-left));padding-right:max(14px,env(safe-area-inset-right))}
+  .layout{padding-left:max(14px,env(safe-area-inset-left));padding-right:max(14px,env(safe-area-inset-right))}
+
+  /* ----- нижняя панель: 4 главных раздела + «Ещё» ----- */
+  body{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
+  nav.mobile{
+    display:flex;position:fixed;left:0;right:0;bottom:0;z-index:40;
+    padding:6px max(8px,env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));
+    gap:2px;overflow:visible;border-radius:0;
+    background:rgba(255,255,255,.94);
+    -webkit-backdrop-filter:saturate(180%) blur(18px);backdrop-filter:saturate(180%) blur(18px);
+    border-top:1px solid rgba(23,25,28,.09);box-shadow:0 -6px 24px rgba(23,25,28,.06);
+  }
+  nav.mobile button{
+    flex:1 1 0;min-width:0;min-height:52px;padding:6px 2px 4px;border:0;border-radius:14px;
+    background:transparent;color:#7b828b;font-size:10px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;position:relative;
+  }
+  nav.mobile button svg{width:25px;height:25px;display:block}
+  nav.mobile button span{display:block;margin:0;font-size:10.5px;line-height:1.1;font-weight:800;letter-spacing:.01em}
+  nav.mobile button.active,nav.mobile button.has-active{background:transparent;color:var(--o,#ff5a1f)}
+  nav.mobile button.active::before,nav.mobile button.has-active::before{
+    content:"";position:absolute;top:-7px;left:26%;right:26%;height:3px;border-radius:0 0 3px 3px;background:var(--o,#ff5a1f)}
+  nav.mobile button:active{background:rgba(255,90,31,.08)}
+
+  /* ----- «Ещё»: лист снизу ----- */
+  .more-sheet[hidden]{display:none}
+  .more-sheet{position:fixed;inset:0;z-index:60}
+  .more-shade{position:absolute;inset:0;background:rgba(17,17,17,.38);animation:km-fade .18s ease-out}
+  .more-panel{
+    position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:24px 24px 0 0;
+    padding:10px max(14px,env(safe-area-inset-right)) calc(14px + env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left));
+    display:grid;grid-template-columns:1fr 1fr;gap:10px;animation:km-up .22s cubic-bezier(.2,.8,.2,1);
+    box-shadow:0 -12px 40px rgba(17,17,17,.18);
+  }
+  .more-grip{grid-column:1/-1;width:42px;height:5px;border-radius:99px;background:#d9dbde;margin:2px auto 6px}
+  .more-panel button{
+    display:flex;align-items:center;gap:12px;min-height:58px;padding:12px 14px;border:1px solid var(--line,#e6e3dc);
+    border-radius:16px;background:#faf9f6;color:#17191c;font:inherit;font-size:15px;font-weight:800;text-align:left;
+  }
+  .more-panel button svg{width:24px;height:24px;flex:none;color:var(--o,#ff5a1f)}
+  .more-panel button.active{background:#fff0e9;border-color:#ffc9b3}
+  .more-panel button:last-child{grid-column:1/-1}
+  @keyframes km-up{from{transform:translateY(100%)}to{transform:none}}
+  @keyframes km-fade{from{opacity:0}to{opacity:1}}
+
+  /* ----- iPhone: без авто-увеличения полей и с нормальными зонами нажатия ----- */
+  input,select,textarea{font-size:16px!important}
+  input:not([type=checkbox]):not([type=radio]),select{min-height:44px}
+  .toast{bottom:calc(92px + env(safe-area-inset-bottom))}
+  #globalToast{bottom:calc(92px + env(safe-area-inset-bottom))}
+
+  /* ----- подсказка «Добавить на экран Домой» ----- */
+  .ios-install:not([hidden]){
+    display:flex;align-items:center;gap:12px;position:fixed;left:12px;right:12px;
+    bottom:calc(84px + env(safe-area-inset-bottom));z-index:45;padding:12px 14px;border-radius:18px;
+    background:#17191c;color:#fff;box-shadow:0 14px 36px rgba(17,17,17,.32);animation:km-up .25s ease-out;
+  }
+  .ios-install img{border-radius:10px;flex:none}
+  .ios-install b{display:block;font-size:14px;line-height:1.25}
+  .ios-install p{margin:3px 0 0;font-size:12.5px;line-height:1.35;color:#cfd2d6}
+  .ios-install .share-ico{display:inline-block;vertical-align:-5px;color:#5ab0ff}
+  .ios-install .share-ico svg{width:19px;height:19px}
+  .ios-install button{flex:none;width:34px;height:34px;border:0;border-radius:50%;background:rgba(255,255,255,.12);color:#fff;font-size:22px;line-height:1;padding:0}
+
+  /* ----- дровер/карточки не заезжают под нижнюю панель ----- */
+  .drawer aside,#studentDrawer aside,#groupDrawer aside{padding-bottom:calc(16px + env(safe-area-inset-bottom))}
+}
+
+/* В режиме приложения (с экрана «Домой») браузерных панелей нет — подсказка и кнопка установки не нужны */
+@media(display-mode:standalone){
+  .install,.ios-install{display:none!important}
+  html{overscroll-behavior-y:none}
+}

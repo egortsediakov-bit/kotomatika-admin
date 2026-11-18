@@ -1623,7 +1623,7 @@ body.is-authenticated .auth-overlay{display:none}
 
 .lead-bulk-bar{
   display:grid;
-  grid-template-columns:auto minmax(170px,.8fr) minmax(190px,.8fr) auto auto 1fr;
+  grid-template-columns:auto minmax(170px,.8fr) minmax(190px,.8fr) auto auto auto 1fr;
   gap:8px;align-items:center;
   margin-bottom:10px;padding:9px 11px;border-radius:14px;
   background:#111;color:#fff
@@ -3022,3 +3022,14 @@ table tbody tr:hover{
   text-overflow:ellipsis!important;
   white-space:nowrap!important;
 }
+
+/* Удаление выбранных заявок и выбор карточек в канбане (2026-11-18) */
+.lead-bulk-bar button#leadBulkDelete{background:#e5484d;color:#fff}
+.lead-bulk-bar button:disabled{opacity:.55;cursor:wait}
+.lead-card-check{width:16px;height:16px;margin:0 2px 0 0;flex:none;accent-color:#ff5a1f;cursor:pointer}
+.lead-card-top .lead-priority{margin-right:auto}
+.lead-kanban-card:has(.lead-card-check:checked){outline:2px solid #ff5a1f;outline-offset:-1px}
+@media(max-width:850px){.lead-bulk-bar button#leadBulkDelete{grid-column:1/-1}}
+/* панель выбранных заявок остаётся на виду при прокрутке */
+.lead-bulk-bar{position:sticky;top:78px;z-index:30;box-shadow:0 10px 30px rgba(0,0,0,.18)}
+@media(max-width:900px){.lead-bulk-bar{top:calc(64px + env(safe-area-inset-top))}}

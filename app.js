@@ -1138,6 +1138,7 @@ function leadKanbanCard(l){
   const age=leadAgeText(l.created_at);
   return `<article class="lead-kanban-card ${priority.className}" draggable="true" data-lead-drag="${esc(l.id)}" data-open-lead="${esc(l.id)}">
     <div class="lead-card-top">
+      <input class="lead-card-check" type="checkbox" data-lead-select="${esc(l.id)}" ${leadSelected.has(String(l.id))?'checked':''} aria-label="Выбрать заявку">
       <span class="lead-priority ${priority.className}">${esc(priority.label)}</span>
       <small>${esc(age)}</small>
     </div>
@@ -1307,12 +1308,50 @@ async function applyBulkLeadChanges(){
       :`Обновлено заявок: ${done}`);
 }
 
+
+/* Удаление заявок: сразу убираем из интерфейса, без полной перезагрузки CRM */
+function removeLeadsLocally(ids,{full=true}={}){
+  const set=new Set(ids.map(String));
+  STATE.leads=STATE.leads.filter(l=>!set.has(String(l.id)));
+  STATE.tasks=STATE.tasks.filter(t=>!set.has(String(t.lead_id||'')));
+  STATE.events=STATE.events.filter(e=>!set.has(String(e.lead_id||'')));
+  set.forEach(id=>leadSelected.delete(id));
+  if(full) renderAll();
+  else document.querySelectorAll(ids.map(id=>`[data-open-lead="${CSS.escape(String(id))}"]`).join(',')).forEach(el=>el.remove());
+}
+async function deleteSelectedLeads(){
+  const ids=[...leadSelected];
+  if(!ids.length)return;
+  const linked=ids.filter(id=>STATE.students.some(s=>String(s.source_lead_id||'')===String(id))).length;
+  const word=n=>n%10===1&&n%100!==11?'заявку':(n%10>=2&&n%10<=4&&(n%100<10||n%100>=20)?'заявки':'заявок');
+  const msg=`Удалить ${ids.length} ${word(ids.length)}?\n\nЗаявки, их задачи и история будут удалены без возможности восстановления.`+(linked?`\nКарточки учеников (${linked}) останутся в разделе «Ученики».`:'');
+  if(!window.confirm(msg))return;
+  const btns=['#leadBulkDelete','#leadBulkApply','#leadBulkClear'].map(s=>$(s)).filter(Boolean);
+  btns.forEach(b=>b.disabled=true);
+  const progress=$('#leadBulkProgress');
+  let done=0; const failed=[];
+  for(const id of ids){
+    progress.textContent=`Удаляем ${done+failed.length+1} / ${ids.length}`;
+    try{ await api('deleteLead',{id}); done++; removeLeadsLocally([id],{full:false}); }
+    catch(e){ failed.push(id); }
+  }
+  progress.textContent='';
+  btns.forEach(b=>b.disabled=false);
+  renderAll();
+  if(failed.length){
+    showError(`Удалено ${done}, не удалось удалить ${failed.length}. Список обновлён с сервера.`);
+    try{ await bootstrap(); }catch(e){}
+  }else{
+    toast(`Удалено заявок: ${done}`);
+  }
+}
 ['#search','#status','#teacherFilter','#leadSourceFilter','#leadSort'].forEach(id=>$(id).addEventListener('input',renderLeads));
 $('#leadKanbanMode').onclick=()=>{leadViewMode='kanban';renderLeads()};
 $('#leadTableMode').onclick=()=>{leadViewMode='table';renderLeads()};
 $$('.lead-quick-filters [data-lead-quick]').forEach(b=>b.onclick=()=>{leadQuickFilter=b.dataset.leadQuick||'';renderLeads()});
 $('#leadBulkApply').onclick=applyBulkLeadChanges;
 $('#leadBulkClear').onclick=()=>{leadSelected.clear();renderLeads()};
+if($('#leadBulkDelete'))$('#leadBulkDelete').onclick=deleteSelectedLeads;
 $('#leadSelectAll').addEventListener('change',e=>{
   filteredLeads().forEach(l=>e.target.checked?leadSelected.add(String(l.id)):leadSelected.delete(String(l.id)));
   renderLeads();
@@ -1324,7 +1363,11 @@ document.addEventListener('click',e=>{
   e.stopPropagation();
   const id=String(cb.dataset.leadSelect);
   cb.checked?leadSelected.add(id):leadSelected.delete(id);
-  renderLeads();
+  // без полной перерисовки списка: только панель выбора и чекбокс «выбрать все»
+  renderLeadBulkBar();
+  const vis=filteredLeads();
+  const all=vis.length>0&&vis.every(l=>leadSelected.has(String(l.id)));
+  const sa=$('#leadSelectAll'); if(sa){sa.checked=all;sa.indeterminate=!all&&vis.some(l=>leadSelected.has(String(l.id)))}
 });
 
 document.addEventListener('dragstart',e=>{
@@ -1626,16 +1669,10 @@ $('#deleteLead').addEventListener('click',async()=>{
 
   $('#drawer').classList.remove('open');
   currentLead=null;
+  btn.disabled=false;
+  btn.textContent='Удалить заявку';
+  removeLeadsLocally([leadId]);
   toast('Заявка удалена');
-
-  try{
-    await bootstrap();
-  }catch(e){
-    showError(`Заявка удалена, но список не обновился автоматически: ${e.message}`);
-  }finally{
-    btn.disabled=false;
-    btn.textContent='Удалить заявку';
-  }
 });
 $('#newLeadTask').addEventListener('click',()=>openTaskModal({leadId:currentLead?.id||''}));
 

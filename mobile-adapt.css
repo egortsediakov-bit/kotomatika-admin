@@ -1,0 +1,116 @@
+/* КОТОМАТИКА CRM — адаптация всех разделов под телефон (2026-11-14)
+   Подключается последним. Действует на экранах до 900px (планшет) и до 700px (телефон). */
+
+[hidden]{display:none!important}
+
+@media(max-width:900px){
+  /* Главная причина «уезжающих» страниц: колонка 1fr не сжималась по содержимому (канбан, таблицы, неделя). */
+  .layout{grid-template-columns:minmax(0,1fr)}
+  main{min-width:0;max-width:100%}
+  :where(.page *){min-width:0}
+  .page{overflow-x:clip}
+  .calendar-layout,.calendar-layout-pro,.calendar-bottom-grid,.stats-dashboard-grid,.stats-hero,.settings,.settings-grid{grid-template-columns:minmax(0,1fr)}
+  .scroll,.lead-kanban-wrap,.calendar-week-view{-webkit-overflow-scrolling:touch;max-width:100%}
+}
+
+@media(max-width:700px){
+  /* ---------- общие размеры: пальцем попасть легко ---------- */
+  .page small,.drawer small,.modal small{font-size:11.5px!important}
+  .page .sub{font-size:12px!important}
+  button,select,summary{min-height:40px}
+  input[type=checkbox],input[type=radio]{width:22px;height:22px;min-height:0}
+  input[type=date],input[type=datetime-local],input[type=time]{min-height:44px;line-height:1.2}
+  .head h1{font-size:30px}
+  .head-actions{width:100%}.head-actions button{flex:1}
+  .top-refresh{min-height:40px}
+  #todayRefresh,#studentShowAttention,#financeShowDebtors,#teacherAdvisorOpen,#logoutCurrent{min-height:44px}
+  .page .metrics button,.page article button{min-height:40px}
+  .page :is(.compact-item,.priority-item,.attention-item) button{min-height:38px;padding-left:14px;padding-right:14px}
+
+  /* ---------- фильтры: поиск на всю ширину, списки по два в ряд ---------- */
+  .tools{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .tools input{grid-column:1/-1;min-width:0;width:100%}
+  .tools select{width:100%;min-width:0}
+  .tools>*:last-child:nth-child(even){grid-column:1/-1}
+  .lead-tools{grid-template-columns:1fr 1fr}
+  .lead-tools>input,.lead-tools>:first-child{grid-column:1/-1}
+  .lead-view-toggle button,.calendar-view-toggle button{min-height:42px}
+  .lead-quick-filters{display:flex;gap:8px;overflow-x:auto;flex-wrap:nowrap;padding-bottom:4px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .lead-quick-filters::-webkit-scrollbar{display:none}
+  .lead-quick-filters button{flex:none;min-height:40px;white-space:nowrap}
+
+  /* ---------- канбан заявок: колонки листаются свайпом ---------- */
+  .lead-kanban-wrap{scroll-snap-type:x mandatory;scroll-padding:0 14px;margin:0 -14px;padding:0 14px 10px}
+  .lead-kanban{min-width:0;width:max-content;grid-template-columns:repeat(7,min(82vw,340px));gap:10px}
+  .lead-kanban-column{scroll-snap-align:center;min-height:200px}
+  .lead-kanban-card .lead-card-footer button{min-height:38px}
+
+  /* ---------- таблицы → карточки ---------- */
+  #page-students .table,#leadTableView{background:transparent;border:0;border-radius:0;overflow:visible}
+  #page-students .scroll,#leadTableView .scroll{overflow:visible}
+  #page-students table,#leadTableView table{min-width:0;width:100%;display:block}
+  #page-students thead,#leadTableView thead{display:none}
+  #page-students tbody,#leadTableView tbody{display:grid;gap:10px}
+  #page-students tr,#leadTableView tr{display:grid;gap:6px 12px;padding:14px;background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:0 4px 14px rgba(17,17,17,.04)}
+  #page-students td,#leadTableView td{display:block;padding:0;border:0;min-width:0;font-size:14px}
+  #page-students td[colspan],#leadTableView td[colspan]{grid-column:1/-1}
+  #page-students td::before,#leadTableView td::before{display:block;font-size:10px;font-weight:900;letter-spacing:.07em;text-transform:uppercase;color:#9aa0a6;margin-bottom:2px}
+  /* ученики: имя+статус, затем класс/программа/преподаватель/тариф/оплата */
+  #page-students tr:not(:has(td[colspan])){grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);grid-template-areas:"name stat" "grade prog" "teach tar" "pay pay"}
+  #page-students td:nth-child(1){grid-area:name}
+  #page-students td:nth-child(2){grid-area:grade}#page-students td:nth-child(2)::before{content:"Класс"}
+  #page-students td:nth-child(3){grid-area:prog}
+  #page-students td:nth-child(3)::before{content:"Программа"}
+  #page-students td:nth-child(4){grid-area:teach}
+  #page-students td:nth-child(4)::before{content:"Преподаватель"}
+  #page-students td:nth-child(5){grid-area:tar}
+  #page-students td:nth-child(5)::before{content:"Тариф"}
+  #page-students td:nth-child(6){grid-area:pay}
+  #page-students td:nth-child(6)::before{content:"Следующая оплата"}
+  #page-students td:nth-child(7){grid-area:stat;justify-self:end}
+  #page-students td:nth-child(1) .name{font-size:17px;font-weight:900}
+  /* заявки: чекбокс+приоритет+время, имя, цель, контакт/преподаватель/статус */
+  #leadTableView tr:not(:has(td[colspan])){grid-template-columns:auto 1fr auto;grid-template-areas:"chk pri time" "name name name" "goal goal goal" "contact teach stat"}
+  #leadTableView td:nth-child(1){grid-area:chk;align-self:center}
+  #leadTableView td:nth-child(2){grid-area:pri}
+  #leadTableView td:nth-child(3){grid-area:time;text-align:right}
+  #leadTableView td:nth-child(4){grid-area:name}
+  #leadTableView td:nth-child(4) .name{font-size:17px;font-weight:900}
+  #leadTableView td:nth-child(5){grid-area:goal}
+  #leadTableView td:nth-child(5)::before{content:"Цель"}
+  #leadTableView td:nth-child(6){grid-area:contact}
+  #leadTableView td:nth-child(6)::before{content:"Контакт"}
+  #leadTableView td:nth-child(7){grid-area:teach}
+  #leadTableView td:nth-child(7)::before{content:"Преподаватель"}
+  #leadTableView td:nth-child(8){grid-area:stat;justify-self:end;align-self:end}
+
+  /* таблицы статистики остаются таблицами, но листаются внутри своей рамки */
+  .stats-table-panel .scroll{overflow-x:auto}
+  .stats-table{min-width:640px}
+
+  /* ---------- календарь: неделя листается по дням ---------- */
+  .calendar-week-view{scroll-snap-type:x mandatory;margin:0 -4px;padding:0 4px 6px}
+  .calendar-week-grid{min-width:0;width:max-content;grid-template-columns:repeat(7,calc(100vw - 92px));gap:10px}
+  .calendar-week-day{scroll-snap-align:start;min-height:260px}
+  .calendar-nav button{min-width:46px;min-height:46px}
+  .week-add{min-height:38px}
+  .calendar-week-day-head{min-height:44px}
+
+  /* ---------- карточки/окна: на весь экран, закрытие под палец ---------- */
+  .drawer aside{width:100%;max-width:100%;padding:0 14px calc(18px + env(safe-area-inset-bottom))}
+  .drawer-top{position:sticky;top:0;z-index:6;background:var(--paper,#f7f6f2);padding:calc(10px + env(safe-area-inset-top)) 0 8px;align-items:center}
+  .drawer-top button{width:46px;height:46px;border:1px solid var(--line)}
+  .drawer h2{font-size:26px;margin:14px 0 6px}
+  .drawer .actions,.drawer .student-quick-actions .actions{grid-template-columns:1fr 1fr}
+  .drawer .two{grid-template-columns:1fr}
+  .drawer .card{border-radius:18px;padding:16px}
+
+  .modal{left:0;right:0;top:auto;bottom:0;transform:none;width:100%;max-height:92vh;max-height:92dvh;border-radius:24px 24px 0 0;
+    padding:18px 16px calc(20px + env(safe-area-inset-bottom));animation:km-sheet .24s cubic-bezier(.2,.8,.2,1)}
+  .modal .two{grid-template-columns:1fr}
+  .modal-top button{width:44px;height:44px}
+  @keyframes km-sheet{from{transform:translateY(100%)}to{transform:none}}
+
+  /* системные сообщения не прячутся под нижнюю панель */
+  #globalError{position:fixed;left:12px;right:12px;bottom:calc(86px + env(safe-area-inset-bottom));z-index:120}
+}

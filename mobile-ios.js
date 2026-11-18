@@ -37,4 +37,15 @@
     var x=$('#iosInstallClose');
     if(x) x.addEventListener('click',function(){hint.hidden=true;try{localStorage.setItem(KEY,String(Date.now()))}catch(e){}});
   }
+
+  /* ---------- календарь: неделя открывается на сегодняшнем дне ---------- */
+  var grid=$('#calendarWeekGrid');
+  if(grid&&window.MutationObserver){
+    var focusToday=function(){
+      var view=$('#calendarWeekView'); if(!view||view.scrollWidth<=view.clientWidth+4)return;
+      var d=grid.querySelector('.calendar-week-day.selected')||grid.querySelector('.calendar-week-day.today');
+      if(d) view.scrollLeft=Math.max(0,d.offsetLeft-grid.offsetLeft);
+    };
+    new MutationObserver(function(){requestAnimationFrame(focusToday)}).observe(grid,{childList:true});
+  }
 })();
